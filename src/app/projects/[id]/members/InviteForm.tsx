@@ -29,7 +29,7 @@ export default function InviteForm({ projectId }: { projectId: string }) {
             });
             if (error) setMsg(error.message);
             else {
-              const url = `${location.origin}/projects/${data}/accept`;
+              const url = `${location.origin}/invites/${data}`;
               await navigator.clipboard.writeText(url).catch(() => {});
               setMsg('Davet oluşturuldu. Link panoya kopyalandı.');
             }

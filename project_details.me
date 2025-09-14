@@ -1,0 +1,812 @@
+
+## C‑rep: Carbon Emissions Reporting Platform
+
+
+Frist of all main task is calcuating carbon. This is a professional, modern, good looking software.
+
+C‑rep helps organizations track, calculate, and report their carbon footprint across projects, activities, and evidence. It’s multi‑tenant, secure by design (RLS), and optimized for a clean UX with responsive, sustainable theming.
+
+### Core Objectives
+- Record emissions entries (energy, transport, materials)
+- Organize by projects and members (owner/editor/viewer roles)
+- Attach evidence files (images, PDFs) with secure storage
+- Generate basic reports and exports (CSV, printable)
+- Multi‑language (TR/EN) with instant switching
+- Strong security: Supabase Auth + Postgres RLS
+
+### Primary Users
+- Organization owner/admin
+- Project managers
+- Contributors (data entry)
+- Viewers/auditors (read‑only)
+
+---
+
+## Tech Stack and Architecture
+
+### Languages
+- TypeScript everywhere (frontend + server actions)
+- SQL for database migrations
+
+### Frontend
+- Next.js 15 (App Router, React Server Components)
+- React 19
+- Tailwind CSS v4 (utility‑first)
+- Lucide icons, also can be others too
+- Radix UI Dialog for accessible modals
+- Class Variance Authority (CVA) for component variants
+- clsx + tailwind‑merge for class utilities
+
+### Backend
+- Supabase:
+  - Auth (email/password or magic link)
+  - Postgres (schema, policies)
+  - Storage (evidence bucket)
+  - SSR helpers for cookie‑based sessions
+
+### Security and Auth
+- Supabase Auth with cookie session via @supabase/ssr
+- Postgres RLS (Row Level Security)
+- SECURITY DEFINER functions for non‑recursive inserts
+- Owner shortcuts in policies for admin actions
+- Minimal attack surface: uploads via storage policies
+
+### Internationalization
+- Cookie‑based locale (tr/en)
+- Server‑side t() using messages dictionary
+- Client LangSwitcher posts to a server action
+
+### Styling and Theme
+- Sustainable theme: emerald/green palette
+- Glassmorphism accents
+- Responsive layouts
+- System fonts or Google fonts (Geist)
+
+### Data Model (Core Tables)
+- projects (id, name, description, owner_id, created_at)
+- project_members (project_id, user_id, role: owner/editor/viewer)
+- entries (id, project_id, type, amount, unit, date, notes)
+- evidence_files (id, project_id, entry_id?, file_path, mime, hash, size)
+- audit_logs (id, user_id, action, resource, metadata, created_at)
+
+### High‑Level Architecture
+- Next.js app router provides UI and server actions
+- Supabase SSR client in server components
+- RLS ensures tenants can only access their own data
+- Storage policies check project membership/ownership
+- Evidence uploads: client computes SHA‑256 and records metadata
+
+---
+
+## Prerequisites (Windows)
+
+- Node.js LTS and npm
+- Git and VS Code
+- Supabase account (project, URL, anon key)
+- Optional:
+  - Supabase CLI (for local emulation)
+  - Docker if you want local Postgres
+
+---
+
+## Step 1: Initialize the Project
+
+- Create a Next.js 15 + TypeScript project (App Router)
+- Configure package.json scripts:
+  - dev: next dev
+  - build: next build
+  - start: next start
+- Add basic layout.tsx and `src/app/page.tsx`
+
+Folder layout you’ll aim for:
+- src/
+  - app/
+    - api/
+    - auth/
+    - dashboard/
+    - login/
+    - signup/
+    - projects/[id]/…
+    - i18n/
+    - layout.tsx
+    - page.tsx
+  - components/
+    - Header.tsx
+    - LangSwitcher.tsx
+    - CreateProjectDialog.tsx
+    - button.tsx
+  - i18n/
+    - messages.ts
+    - index.ts
+  - lib/
+    - server.ts
+    - utils.ts
+- db/migrations/
+- public/
+- tailwind + config files
+- next.config.ts
+- tsconfig.json
+
+---
+
+## Step 2: Install Dependencies
+
+- UI and utilities: tailwindcss, autoprefixer, class-variance-authority, clsx, tailwind-merge, lucide-react, @radix-ui/react-dialog
+- Supabase: @supabase/supabase-js, @supabase/ssr
+- Forms and validation: react-hook-form, zod
+- Dates: date-fns
+- Dev: eslint, @types/* as needed
+
+---
+
+## Step 3: Tailwind Setup
+
+- Initialize Tailwind with Next.js
+- Configure a green/emerald palette and container
+- Add your glassmorphism utilities via classes
+- Use dark mode (class or media)
+
+Example concepts:
+- Backgrounds: bg-emerald-900/70 with backdrop-blur-xl
+- Primary gradient: from-green-500 to-emerald-500
+- Borders: border-white/10 for subtle glass edges
+
+---
+
+## Step 4: Supabase Setup
+
+1. Create a project in Supabase, copy:
+   - NEXT_PUBLIC_SUPABASE_URL
+   - NEXT_PUBLIC_SUPABASE_ANON_KEY
+2. Add to `.env.local`:
+   - NEXT_PUBLIC_SUPABASE_URL=...
+   - NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+3. Database schema migrations under db/migrations (runnable in SQL editor):
+   - Create tables: projects, project_members, entries, evidence_files, audit_logs
+   - Enable RLS on all tables
+   - Policies:
+     - projects: owner can do everything; members read if permitted
+     - project_members: only owner can manage; viewers read
+     - entries: read/write only for members; owner shortcut for all
+     - evidence_files: read for members; write for owner/editor
+   - Storage:
+     - Create bucket “evidence”
+     - Storage policies: allow access to files under a path schema like evidence/{project_id}/...
+4. Create SECURITY DEFINER functions:
+   - create_project(owner_id, name, description)
+   - add_member(project_id, user_id, role)
+   - These avoid recursive policy evaluation while preserving security.
+
+Policy philosophy:
+- Always check auth.uid() membership
+- Avoid recursive queries in policies (no policy chaining)
+- Provide owner “bypass” policy for safety (but scoped)
+
+---
+
+## Step 5: Supabase SSR Client
+
+- server.ts
+  - Use createServerClient from @supabase/ssr
+  - Hook into Next.js cookies for get/set/remove
+  - Export createClient() async function
+- Use the client in server components (layout, pages) and server actions
+
+---
+
+## Step 6: Authentication Flows (Server Actions)
+
+- actions.ts
+  - login(formData): email/password sign in, redirect with messages
+  - signup(formData): create user, optional email confirmations
+  - signOut(): invalidate session and redirect
+- Protect routes (dashboard, projects) by checking supabase.auth.getUser() in layouts/pages and redirect if unauthenticated.
+
+---
+
+## Step 7: Internationalization
+
+- src/i18n/messages.ts: dictionary for tr/en
+- src/i18n/index.ts:
+  - async getLocale(): read cookie “locale”
+  - async getMessages(): return dict for current locale
+  - async t(path): resolve dotted key paths
+- src/app/i18n/actions.ts:
+  - switchLocale(FormData): set cookie and redirect to current path
+- LangSwitcher.tsx (client): small <select> that submits to switchLocale
+
+---
+
+## Step 8: UI Components
+
+- Button.tsx using CVA:
+  - Variants: default, ghost, outline, destructive
+  - Sizes: sm, md, lg
+- Header.tsx:
+  - Logo (Leaf icon), brand text “C-rep”
+  - Nav links (Dashboard, Reports, Opportunities) visible when authenticated
+  - Language switcher
+  - Profile/email and Sign Out button
+  - Login/Signup when unauthenticated
+- CreateProjectDialog.tsx:
+  - Radix UI Dialog with a form
+  - Calls a server action or RPC to create the project transactionally
+
+Theme wins:
+- Keep spacing/padding consistent
+- Use text-green-100 on dark backgrounds
+- Provide hover states with text-green-400
+
+---
+
+## Step 9: Projects and Entries
+
+- Server actions:
+  - createProject(name, description): use RPC to insert project and owner membership atomically
+  - createEntry(project_id, payload): validate with zod; redirect to project page with a toast
+  - addMember/removeMember: look up by email or UUID; ensure role constraints
+- Pages:
+  - /dashboard: list user’s projects
+  - /projects/[id]: project overview, entries list, actions
+  - /projects/[id]/members: member management UI
+  - /projects/[id]/entries/new: add new entry form
+
+---
+
+## Step 10: Evidence Uploads
+
+- Client-side:
+  - Compute SHA‑256 of file for deduping
+  - Use Supabase Storage to upload to “evidence/{project_id}/{hash}.{ext}”
+  - Validate MIME and size
+- Server-side:
+  - Insert evidence_files row (project_id, entry_id?, file_path, mime, hash, size)
+  - RLS ensures only project members access paths
+- UI:
+  - Preview images (thumbnails), download links
+  - Evidence listing under an entry
+
+---
+
+## Step 11: Reporting and Exports
+
+- Basic CSV export:
+  - Build a CSV on the server action for entries
+  - Return as a file response
+- Printable view:
+  - Render a clean, printer‑friendly page (use CSS @media print)
+- Future:
+  - Charts (e.g., bar/pie per category)
+  - Advanced filtering and ranges (date pickers via date-fns)
+
+---
+
+## Step 12: Testing Strategy
+
+- Unit tests (vitest) for utils and t()
+- Integration (Playwright) for critical flows:
+  - Login
+  - Create project
+  - Add entry
+  - Upload evidence
+- Seed data scripts for local testing
+- Mock Supabase where feasible
+
+---
+
+## Step 13: Deployment
+
+- Deploy on Vercel (Next.js native)
+- Add environment variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)
+- Run database migrations on Supabase
+- Create storage bucket in production and set policies
+- Verify RLS works in production (test with non‑members)
+
+---
+
+## Step 14: Troubleshooting Playbook
+
+- RLS: “new row violates row-level security”
+  - Check membership, owner shortcuts, and non‑recursive policies
+- Storage: “bucket not found”
+  - Create “evidence” bucket; verify path and policy
+- Next.js root warning (multiple lockfiles)
+  - Remove duplicate lockfiles outside project root or set turbopack.root
+- Port 3000 in use
+  - Use another port: npx next dev --port 3001
+- getLocale not a function
+  - Ensure async getLocale() + await usage in server components
+
+---
+
+## Step 15: Roadmap
+
+- Performance: incremental static regeneration for reports
+- Accessibility: aria labels, keyboard navigation, color contrast
+- Role management UI upgrades
+- Audit log UI
+- Email notifications on member invites
+- Mobile PWA (offline access to drafts)
+
+---
+
+## Minimal Implementation Checklist
+
+- Project init (Next.js + TS)
+- Tailwind configured (theme + globals.css)
+- Supabase SSR client set up
+- Auth server actions (login, signup, signOut)
+- i18n (messages.ts, getLocale/t(), switchLocale action, LangSwitcher)
+- Button component via CVA
+- Header with auth states and nav
+- Projects: create/list; Entries: create/list
+- Evidence: upload/preview/download
+- CSV export (server action)
+- Basic tests + deploy
+
+If you want, I can scaffold the full project structure and boilerplate files for you now and wire up the critical paths (auth, i18n, header, projects CRUD) so you can run it immediately:
+
+Completed (2/18) *Stack and architecture overview*
+
+Awesome—here’s a complete, from-scratch build guide for recreating the C‑rep app. It’s comprehensive: product vision, tech stack, architecture, database schema and RLS, step-by-step implementation, code patterns, UI system, testing, deployment, troubleshooting, and a roadmap. Use this as your master blueprint.
+
+## C‑rep: Carbon Emissions Reporting Platform
+
+C‑rep helps organizations track, calculate, and report their carbon footprint across projects with strong data security, evidence file handling, and a clean, accessible UI.
+
+### Product vision
+- Centralize emissions data entry (energy, transport, materials)
+- Attach and manage evidence (images, PDFs) per entry
+- Multi‑tenant, role‑based project collaboration (owner/editor/viewer)
+- Export and share reports (CSV, printable view)
+- Internationalization (TR/EN) with instant switching
+- Secure by design via Supabase Auth + Postgres RLS
+
+### Target users
+- Organization owners/admins
+- Project managers and data contributors
+- Viewers/auditors (read-only, evidence review)
+
+### Success criteria (KPIs)
+- Time to first project < 2 minutes
+- Upload latency < 2 sec for < 5 MB images
+- Zero cross‑tenant data leaks under RLS
+- 99% of RLS policy checks passing in integration tests
+
+---
+
+## Technology and architecture
+
+### Languages
+- TypeScript (frontend + server actions)
+- SQL (migrations and policies)
+
+### Frontend
+- Next.js 15 (App Router + React Server Components)
+- React 19
+- Tailwind CSS v4
+- Lucide icons
+- Radix UI (Dialog)
+- Class Variance Authority (CVA)
+- clsx + tailwind-merge (class utilities)
+
+### Backend
+- Supabase:
+  - Auth (email/password)
+  - Postgres (schema, RLS policies)
+  - Storage (evidence bucket)
+  - @supabase/ssr (cookie-based SSR client)
+
+### Security and privacy
+- Supabase Auth, cookie sessions via SSR helpers
+- Postgres RLS: strong tenant isolation
+- SECURITY DEFINER RPC functions to avoid policy recursion
+- Strict storage path rules by project scope
+- Audit logging for critical actions
+
+### Theming
+- Sustainable theme: greens/emerald palette, glassmorphism highlights
+- Accessible color contrast, focus rings, hover states
+- Responsive layout; mobile friendly
+
+---
+
+## System design overview
+
+- UI via Next.js App Router; server components fetch data through SSR Supabase client
+- Server actions perform mutations (+ session cookies maintained)
+- Postgres with RLS isolates tenant data
+- Storage bucket “evidence” with path-based access policies
+- Evidence: client computes SHA-256, avoids duplicates, and records metadata
+- Internationalization via cookie locale; server-side messages rendering
+- Minimal external state management; use server actions + component state
+
+---
+
+## Database schema (core tables)
+
+1) projects
+- id uuid primary key default gen_random_uuid()
+- name text not null
+- description text
+- owner_id uuid not null (references auth.users)
+- created_at timestamptz default now()
+
+2) project_members
+- project_id uuid not null references projects(id) on delete cascade
+- user_id uuid not null references auth.users(id) on delete cascade
+- role text check (role in ('owner','editor','viewer')) not null
+- created_at timestamptz default now()
+- unique (project_id, user_id)
+
+3) entries
+- id uuid pk default gen_random_uuid()
+- project_id uuid not null references projects(id) on delete cascade
+- type text not null check (type in ('energy','transport','materials','other'))
+- amount numeric not null
+- unit text not null
+- date date not null
+- notes text
+- created_by uuid not null references auth.users(id)
+- created_at timestamptz default now()
+
+4) evidence_files
+- id uuid pk default gen_random_uuid()
+- project_id uuid not null references projects(id) on delete cascade
+- entry_id uuid references entries(id) on delete set null
+- file_path text not null -- e.g., evidence/{project_id}/{hash}.{ext}
+- mime text not null
+- hash text not null
+- size integer not null
+- created_by uuid not null references auth.users(id)
+- created_at timestamptz default now()
+- unique(project_id, hash)
+
+5) audit_logs
+- id uuid pk default gen_random_uuid()
+- user_id uuid not null
+- action text not null
+- resource text not null
+- metadata jsonb
+- created_at timestamptz default now()
+
+Indexes
+- project_members (project_id), (user_id)
+- entries (project_id, date)
+- evidence_files (project_id, hash)
+
+---
+
+## RLS policy blueprint
+
+General rules:
+- Enable RLS on all tables
+- Policies check auth.uid() for membership
+- Provide explicit owner-only write policies for project_members
+- Avoid recursive policies (no chain of policies relying on each other)
+
+Examples (pseudo-SQL):
+
+Enable RLS
+- alter table projects enable row level security;
+- alter table project_members enable row level security;
+- alter table entries enable row level security;
+- alter table evidence_files enable row level security;
+
+projects (read for members, full control for owner)
+- SELECT: exists(select 1 from project_members pm where pm.project_id = projects.id and pm.user_id = auth.uid())
+- INSERT: with SECURITY DEFINER RPC create_project()
+- UPDATE/DELETE: owner-only (projects.owner_id = auth.uid())
+
+project_members
+- SELECT: member-only for that project
+- INSERT/UPDATE/DELETE: owner-only of the project
+
+entries
+- SELECT: members
+- INSERT/UPDATE/DELETE: editor/owner (or owner shortcut)
+- Owner-bypass policy: projects.owner_id = auth.uid()
+
+evidence_files
+- SELECT: members (project scope)
+- INSERT/DELETE: editor/owner
+- Owner-bypass policy
+
+SECURITY DEFINER RPCs
+- create_project(p_owner_id uuid, p_name text, p_desc text) returns uuid
+  - Inserts project row (owner_id = p_owner_id)
+  - Inserts project_members(owner role) for owner
+  - Returns id
+- add_member(p_project uuid, p_user uuid, p_role text) owner‑only check inside function
+
+Storage (Supabase)
+- Bucket: evidence
+- File path convention: evidence/{project_id}/{hash}.{ext}
+- Storage policies:
+  - SELECT: project member
+  - INSERT: editor or owner
+  - DELETE: owner or editor
+- Implement using jwt's user id and a SQL function to validate membership by parsing file path’s project_id
+
+---
+
+## Project setup (Windows, PowerShell)
+
+1) Create project
+- npx create-next-app@latest
+- Choose TypeScript, App Router
+- cd into the project
+
+2) Install dependencies
+- npm install tailwindcss autoprefixer
+- npm install class-variance-authority clsx tailwind-merge
+- npm install lucide-react @radix-ui/react-dialog
+- npm install @supabase/supabase-js @supabase/ssr
+- npm install react-hook-form zod date-fns
+- npm install -D eslint prettier (optional)
+- npm install dotenv (if needed at build time)
+
+3) Tailwind init
+- npx tailwindcss init -p
+- Configure content to scan src/**/*.{ts,tsx}
+- Add theme extensions: colors, container, font, etc.
+
+4) Environment variables (.env.local)
+- NEXT_PUBLIC_SUPABASE_URL=…
+- NEXT_PUBLIC_SUPABASE_ANON_KEY=…
+
+5) next.config.ts
+- Export env pass-through (URL, ANON_KEY)
+- Optional: set turbopack.root or outputFileTracingRoot to your project folder to avoid workspace root warnings when multiple lockfiles exist outside
+
+6) tsconfig.json
+- paths: { "@/*": ["./src/*"] }
+- strict: true, moduleResolution: bundler
+
+7) Folder structure (recommended)
+- src/app/
+  - layout.tsx (global layout + Header)
+  - page.tsx (landing)
+  - login/, signup/ (views and actions)
+  - dashboard/ (user projects)
+  - projects/[id]/ (details, members, entries)
+  - actions.ts (switchLocale)
+- src/components/
+  - Header.tsx
+  - LangSwitcher.tsx
+  - CreateProjectDialog.tsx
+  - button.tsx
+- src/i18n/
+  - messages.ts (tr/en dictionaries)
+  - index.ts (async getLocale/getMessages/t)
+- src/lib/
+  - server.ts (SSR client)
+  - utils.ts (cn helper)
+- db/migrations/ (SQL files)
+
+---
+
+## Core utilities and patterns
+
+### Supabase SSR client (src/lib/supabase/server.ts)
+- Use createServerClient(@supabase/ssr)
+- Connect to Next cookies() for get/set/remove
+- Export async function createClient()
+
+### Auth server actions (src/app/auth/actions.ts)
+- login(formData): email/password; on error -> redirect with querystring
+- signup(formData): create user, redirect to check-email or dashboard
+- signOut(): invalidate session and redirect to landing
+
+### Internationalization
+- messages.ts: const messages = { tr: {...}, en: {...} } as const
+- index.ts:
+  - async getLocale(): read cookie('locale') -> 'tr' default
+  - async getMessages(): { locale, dict }
+  - async t(path): dotted path resolution against dict
+- i18n/actions.ts:
+  - switchLocale(FormData): set cookie('locale') and redirect to the same path
+- LangSwitcher.tsx (client):
+  - <select name="locale"> with form action={switchLocale}
+
+### UI System
+
+Button with CVA (src/components/ui/button.tsx)
+- Variants: default, ghost, outline
+- Sizes: sm, md, lg
+- Use clsx + tailwind-merge in a cn() helper
+
+Header (src/components/Header.tsx)
+- Branding (Leaf icon, C‑rep)
+- Nav (Dashboard, Reports, Opportunities) shown when authenticated
+- LangSwitcher + user email + Sign Out button
+- Login/Signup when unauthenticated
+
+### Layout and route protection
+- src/app/layout.tsx:
+  - Fetch supabase auth user via SSR createClient()
+  - Inject user into Header
+  - Redirect to /login for protected routes via route-specific layout or middleware-like checks inside server components
+
+---
+
+## Projects and entries (server actions)
+
+1) Create project
+- Use RPC create_project(owner_id, name, description) SECURITY DEFINER
+- After success, revalidatePath('/dashboard') and redirect
+
+2) Create entry
+- Validate payload with zod (type, amount, unit, date)
+- Insert row under current project
+- Redirect to /projects/[id]?toast=entry_created
+
+3) Member management
+- Resolve user by email (via a helper RPC that returns a UUID)
+- add_member(project_id, user_id, role) SECURITY DEFINER
+- Editor can’t escalate roles; owner can
+
+---
+
+## Evidence uploads
+
+Client-side hashing (SHA-256)
+- Use SubtleCrypto to compute hash (ArrayBuffer -> hex)
+- Build filename: evidence/{project_id}/{hash}.{ext}
+- Validate MIME/size before upload
+
+Upload flow
+- Upload to Supabase Storage with path above
+- On success, server action inserts evidence_files row (hash, mime, size, file_path)
+- UI displays preview (images) or a download link
+
+Security
+- Storage policies ensure only project members can read files within their project_id path portion
+- Write (insert/delete) restricted to editor/owner
+
+---
+
+## Exports and reports
+
+CSV Export
+- Server action builds CSV for entries under a project
+- Return as text/csv with Content-Disposition attachment
+- Optional: date range filtering, grouping by type
+
+Printable view
+- Create a /projects/[id]/print page with simplified styles
+- Use @media print CSS to hide nav and chrome
+
+Charts (roadmap)
+- Add a client-only chart component later (e.g., Chart.js or Recharts)
+- Keep it opt-in to avoid SSR complexity initially
+
+---
+
+## Testing strategy
+
+Unit tests (vitest)
+- Utilities: t() dotted path resolver
+- Hashing util (convert buffer to hex)
+- Simple validators
+
+Integration (Playwright)
+- Login and logout flows
+- Create project, add entry, upload evidence
+- i18n switching persists cookie
+
+Data seeding
+- Write a small seed script leveraging Supabase service role (not in client app) or run SQL in Supabase
+
+---
+
+## Deployment
+
+Vercel
+- Import repo, configure environment variables (URL, ANON KEY)
+- Build command: next build
+- Run command: next start (if not using serverless)
+- Add a domain
+
+Supabase (prod)
+- Apply schema migrations
+- Create “evidence” bucket and apply storage policies
+- Verify RLS with a test user not in a project
+
+---
+
+## Troubleshooting playbook
+
+- RLS “new row violates row-level security”
+  - Check logged-in user context (auth.uid())
+  - Verify membership in project_members
+  - Ensure owner shortcuts are present
+  - Avoid chaining policies that depend on each other’s results
+
+- Storage “bucket not found”
+  - Create the “evidence” bucket
+  - Confirm correct path prefix “evidence/{project_id}”
+  - Ensure storage policies match path pattern
+
+- Next.js “workspace root inferred” warning
+  - Remove duplicate lockfiles outside the project root
+  - Or set turbopack.root or outputFileTracingRoot to __dirname
+
+- Port 3000 in use
+  - Run with a different port
+  - Kill orphan node processes if necessary
+
+- getLocale is not a function
+  - Ensure getLocale is async and awaited in server components
+  - Make sure export names match and you haven’t mixed old sync version
+
+- “Export Button doesn’t exist…”
+  - Confirm Button is exported in button.tsx
+  - Confirm import path is "@/components/ui/button" and not default import
+
+---
+
+## Roadmap
+
+- Performance
+  - Incremental static regeneration for dashboards/reporting snapshots
+- Accessibility
+  - ARIA, keyboard navigation, color contrast audits
+- Role UI
+  - Invite by email, role change flows, confirmations
+- Observability
+  - Expanded audit logs, admin dashboards
+- Notifications
+  - Email or webhook on project changes
+- Mobile
+  - PWA install, offline drafts for entries
+
+---
+
+## Mini blueprint: key files’ contracts
+
+- server.ts
+  - Input: env URL/ANON KEY via process.env
+  - Output: supabase client (SSR-aware)
+  - Errors: missing env -> fail fast (throw)
+
+- actions.ts
+  - login(formData): redirects on success/error
+  - signup(formData): create account → redirect
+  - signOut(): clears session, redirects
+
+- index.ts
+  - getLocale(): returns 'tr' | 'en' (default 'tr')
+  - getMessages(): returns { locale, dict }
+  - t(path): resolves “nav.dashboard” etc.
+
+- button.tsx
+  - Props: variant, size, disabled, className
+  - Returns: <button> with merged classes
+
+- Header.tsx
+  - Props: user?: { email?: string } | null
+  - Shows nav links when user is present
+  - Shows login/signup otherwise
+
+- layout.tsx
+  - Fetch supabase user server-side
+  - Renders Header with user
+  - Children below
+
+---
+
+## Quickstart (high-level)
+
+- Create Next.js app with TS
+- Install dependencies listed above
+- Configure Tailwind, theme, and fonts
+- Add Supabase SSR client and auth actions
+- Implement i18n (messages + async getLocale/t)
+- Build Button and Header
+- Add projects and entries server actions and pages
+- Implement evidence upload (hash + storage + row insert)
+- Add CSV export
+- Test locally, then deploy to Vercel, and configure Supabase (schema + storage)
+
+If you want, I can scaffold the initial files (Button, SSR client, i18n, Header, auth actions, base pages) directly into your repo so you can run it immediately.
