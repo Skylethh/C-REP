@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/server';
 import { addMember, removeMember } from './server';
+import InviteForm from './InviteForm';
 
 export default async function MembersPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
@@ -11,6 +12,7 @@ export default async function MembersPage({ params }: { params: { id: string } }
   return (
     <div className="space-y-6 max-w-xl">
       <h1 className="text-2xl font-semibold">Üyeler</h1>
+      <InviteForm projectId={params.id} />
 
       <form action={addMember.bind(null, params.id)} className="flex gap-2">
         <input name="email" type="email" placeholder="kullanici@ornek.com" className="flex-1 rounded-md bg-emerald-900 border border-white/10 px-3 py-2" />

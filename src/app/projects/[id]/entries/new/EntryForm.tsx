@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabaseBrowser } from '@/lib/client';
 import { Button } from '@/components/button';
+import ActivitySelect from './ActivitySelect';
+import UnitSelect from './UnitSelect';
 
 type Props = {
   projectId: string;
@@ -10,6 +12,7 @@ type Props = {
 
 export default function EntryForm({ projectId, action }: Props) {
   const [type, setType] = useState<'energy'|'transport'|'materials'|'other'>('energy');
+  const [activity, setActivity] = useState<string>('');
   const [amount, setAmount] = useState<number>(0);
   const [unit, setUnit] = useState<string>('kWh');
   const [date, setDate] = useState<string>('');
@@ -21,6 +24,20 @@ export default function EntryForm({ projectId, action }: Props) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // If an activity is chosen, load its default unit and type
+      if (activity) {
+        const { data: act } = await supabaseBrowser
+          .from('activities')
+          .select('type, default_unit, scope, category, units')
+          .eq('id', activity)
+          .maybeSingle();
+        if (act) {
+          setType(act.type as any);
+          setUnit(act.default_unit);
+          if (act.scope) setScope(act.scope as any);
+          if (act.category) setCategory(act.category);
+        }
+      }
       if (!amount || !unit) { setPreview('-'); return; }
       const { data: factor } = await supabaseBrowser
         .from('emission_factors')
@@ -51,9 +68,13 @@ export default function EntryForm({ projectId, action }: Props) {
   return (
     <form action={action} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1 col-span-2">
+          <label className="text-sm text-green-300/80">Aktivite/Materyal</label>
+          <ActivitySelect value={activity} onChange={setActivity} />
+        </div>
         <div className="space-y-1">
           <label className="text-sm text-green-300/80">Tür</label>
-          <select name="type" value={type} onChange={(e) => setType(e.target.value as any)} className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2">
+          <select name="type" value={type} onChange={(e) => setType(e.target.value as any)} disabled={!!activity} className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2 disabled:opacity-60">
             <option value="energy">Enerji</option>
             <option value="transport">Ulaşım</option>
             <option value="materials">Malzeme</option>
@@ -61,26 +82,20 @@ export default function EntryForm({ projectId, action }: Props) {
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-sm text-green-300/80">Tarih</label>
-          <input name="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2" />
-        </div>
-        <div className="space-y-1">
           <label className="text-sm text-green-300/80">Miktar</label>
           <input name="amount" type="number" step="any" value={amount || ''} onChange={(e) => setAmount(Number(e.target.value))} required className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2" />
         </div>
         <div className="space-y-1">
           <label className="text-sm text-green-300/80">Birim</label>
-          <select name="unit" value={unit} onChange={(e) => setUnit(e.target.value)} className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2">
-            <option value="kWh">kWh</option>
-            <option value="km">km</option>
-            <option value="kg">kg</option>
-            <option value="g">g</option>
-            <option value="L">L</option>
-          </select>
+          <UnitSelect activityId={activity} value={unit} onChange={setUnit} />
+        </div>
+        <div className="space-y-1">
+          <label className="text-sm text-green-300/80">Tarih</label>
+          <input name="date" type="date" value={date} onChange={(e) => setDate(e.target.value)} required className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2" />
         </div>
         <div className="space-y-1">
           <label className="text-sm text-green-300/80">Scope</label>
-          <select name="scope" value={scope} onChange={(e) => setScope(e.target.value as any)} className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2">
+          <select name="scope" value={scope} onChange={(e) => setScope(e.target.value as any)} disabled={!!activity} className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2 disabled:opacity-60">
             <option value="">Seç</option>
             <option value="scope1">Scope 1</option>
             <option value="scope2">Scope 2</option>
@@ -89,7 +104,7 @@ export default function EntryForm({ projectId, action }: Props) {
         </div>
         <div className="space-y-1">
           <label className="text-sm text-green-300/80">Kategori</label>
-          <input name="category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="örn. elektrik" className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2" />
+          <input name="category" value={category} onChange={(e) => setCategory(e.target.value)} placeholder="örn. elektrik" disabled={!!activity} className="w-full rounded-md bg-emerald-900 border border-white/10 px-3 py-2 disabled:opacity-60" />
         </div>
       </div>
       <div className="space-y-1">

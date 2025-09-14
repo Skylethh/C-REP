@@ -1,5 +1,6 @@
 "use client";
 import { supabaseBrowser } from '@/lib/client';
+import { deleteEvidence } from '@/app/projects/[id]/evidence/server';
 import { useEffect, useState } from 'react';
 
 export function EvidenceList({ items }: { items: { id: string; file_path: string; size: number; mime?: string }[] }) {
@@ -29,15 +30,11 @@ export function EvidenceList({ items }: { items: { id: string; file_path: string
             </div>
             <div className="flex items-center gap-3">
               <span className="text-green-300/80 text-sm">{Math.round(f.size/1024)} KB</span>
-              <button
-                className="text-red-400 text-sm underline"
-                onClick={async () => {
-                  if (!confirm('Dosyayı silmek istediğinize emin misiniz?')) return;
-                  await supabaseBrowser.storage.from('evidence').remove([f.file_path]);
-                  await supabaseBrowser.from('evidence_files').delete().eq('id', f.id);
-                  location.reload();
-                }}
-              >Sil</button>
+              <form action={deleteEvidence.bind(null, f.file_path.split('/')[1])}>
+                <input type="hidden" name="id" value={f.id} />
+                <input type="hidden" name="file_path" value={f.file_path} />
+                <button className="text-red-400 text-sm underline" type="submit">Sil</button>
+              </form>
             </div>
           </div>
         </li>

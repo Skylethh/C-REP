@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { createClient } from '@/lib/server';
 import { Header } from '@/components/Header';
+import { SkipLink } from '@/components/SkipLink';
 import './globals.css';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -29,8 +30,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   return (
     <html lang="tr">
       <body className="min-h-screen bg-emerald-950 text-green-100">
+        <SkipLink />
         <Header user={{ email: user?.email ?? undefined }} />
-        <main className="container mx-auto px-4 py-8">{children}</main>
+        <main id="main" className="container mx-auto px-4 py-8">{children}</main>
       </body>
     </html>
   );

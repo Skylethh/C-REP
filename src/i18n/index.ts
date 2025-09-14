@@ -17,4 +17,13 @@ export async function t(path: string): Promise<string> {
   return path.split('.').reduce<any>((acc, key) => acc?.[key], dict) ?? path;
 }
 
+export function formatNumber(num: number, locale: 'tr' | 'en' = 'tr') {
+  return new Intl.NumberFormat(locale).format(num);
+}
+
+export function formatDate(date: string | Date, locale: 'tr' | 'en' = 'tr') {
+  const d = typeof date === 'string' ? new Date(date) : date;
+  return new Intl.DateTimeFormat(locale).format(d);
+}
+
 

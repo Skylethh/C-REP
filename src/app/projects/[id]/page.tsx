@@ -40,6 +40,16 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
 
   if (!project) return <div>Proje bulunamadı</div>;
 
+  const totalByType = (entries ?? []).reduce<Record<string, number>>((acc, e) => {
+    acc[e.type] = (acc[e.type] || 0) + (Number(e.co2e_value) || 0);
+    return acc;
+  }, {});
+  const totalByScope = (entries ?? []).reduce<Record<string, number>>((acc, e) => {
+    const key = (e as any).scope || 'unknown';
+    acc[key] = (acc[key] || 0) + (Number(e.co2e_value) || 0);
+    return acc;
+  }, {});
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -51,6 +61,24 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
       </div>
 
       <section className="space-y-3">
+        <div className="grid md:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-white/10 p-4 bg-white/5">
+            <div className="text-sm text-green-300/80 mb-2">Tür bazında CO2e</div>
+            <ul className="text-sm space-y-1">
+              {Object.entries(totalByType).map(([k,v]) => (
+                <li key={k} className="flex justify-between"><span>{k}</span><span>{v.toFixed(2)} kg</span></li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-lg border border-white/10 p-4 bg-white/5">
+            <div className="text-sm text-green-300/80 mb-2">Scope bazında CO2e</div>
+            <ul className="text-sm space-y-1">
+              {Object.entries(totalByScope).map(([k,v]) => (
+                <li key={k} className="flex justify-between"><span>{k}</span><span>{v.toFixed(2)} kg</span></li>
+              ))}
+            </ul>
+          </div>
+        </div>
         <h2 className="text-lg font-semibold">Kayıtlar</h2>
         <form className="flex items-end gap-2">
           <div>
