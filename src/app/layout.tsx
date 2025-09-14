@@ -31,7 +31,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="tr">
       <body className="min-h-screen bg-emerald-950 text-green-100">
         <SkipLink />
-        <Header user={{ email: user?.email ?? undefined }} />
+        <Header user={user ? { email: user.email } : null} />
         <main id="main" className="container mx-auto px-4 py-8">{children}</main>
       </body>
     </html>

@@ -25,13 +25,10 @@ export function Header({ user }: { user?: { email?: string } | null }) {
               <Link href="#features" className="text-sm text-white/80 hover:text-white transition-colors">
                 Özellikler
               </Link>
-              <Link href="#about" className="text-sm text-white/80 hover:text-white transition-colors">
-                Hakkında
+              <Link href="#how-it-works" className="text-sm text-white/80 hover:text-white transition-colors">
+                Nasıl Çalışır
               </Link>
-              <Link href="#testimonials" className="text-sm text-white/80 hover:text-white transition-colors">
-                Referanslar
-              </Link>
-              <Link href="#contact" className="text-sm text-white/80 hover:text-white transition-colors">
+              <Link href="#footer" className="text-sm text-white/80 hover:text-white transition-colors">
                 İletişim
               </Link>
             </div>
@@ -77,13 +74,10 @@ export function Header({ user }: { user?: { email?: string } | null }) {
               <Link href="#features" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
                 Özellikler
               </Link>
-              <Link href="#about" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
-                Hakkında
+              <Link href="#how-it-works" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
+                Nasıl Çalışır
               </Link>
-              <Link href="#testimonials" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
-                Referanslar
-              </Link>
-              <Link href="#contact" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
+              <Link href="#footer" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
                 İletişim
               </Link>
               <div className="flex items-center gap-2 pt-2 border-t border-white/10 mt-2">
