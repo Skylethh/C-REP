@@ -3,6 +3,7 @@ import { createClient } from '@/lib/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { captureServerError } from '@/sentry.server.config';
 
 const schema = z.object({
   type: z.enum(['energy','transport','materials','other']),
@@ -50,23 +51,28 @@ export async function createEntry(projectId: string, formData: FormData) {
   // Pick latest matching factor for category (or type) and region=global
   let factor: any = null;
   if (activity?.id) {
-    const { data: mapped } = await supabase
+    const q = supabase
       .from('activity_factors')
-      .select('factor_id, emission_factors!inner(unit_in, unit_out, value)')
+      .select('factor_id, emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
       .eq('activity_id', activity.id)
-      .limit(1)
-      .maybeSingle();
+      .eq('emission_factors.region', 'global')
+      .order('emission_factors.valid_from', { ascending: false })
+      .limit(1);
+    // Date-aware factor: choose factor whose valid_from <= entry date
+    if (date) (q as any).lte('emission_factors.valid_from', date);
+    const { data: mapped } = await q.maybeSingle();
     if (mapped) factor = (mapped as any).emission_factors;
   }
   if (!factor) {
-    const resp = await supabase
+    const fq = supabase
       .from('emission_factors')
-      .select('unit_in, unit_out, value')
+      .select('unit_in, unit_out, value, valid_from')
       .eq('category', factorCategory)
       .eq('region', 'global')
       .order('valid_from', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(1);
+    if (date) (fq as any).lte('valid_from', date);
+    const resp = await fq.maybeSingle();
     factor = resp.data;
   }
 
@@ -82,7 +88,10 @@ export async function createEntry(projectId: string, formData: FormData) {
         .eq('from_unit', unit)
         .eq('to_unit', factor.unit_in)
         .maybeSingle();
-      if (conv?.multiplier) multiplier = Number(conv.multiplier);
+      if (!conv?.multiplier) {
+        throw new Error(`'${unit}' biriminden '${factor.unit_in}' birimine dönüşüm bulunamadı`);
+      }
+      multiplier = Number(conv.multiplier);
     }
     const normalizedAmount = amount * multiplier;
     co2e_value = normalizedAmount * Number(factor.value);
@@ -103,9 +112,9 @@ export async function createEntry(projectId: string, formData: FormData) {
     co2e_value,
     co2e_unit,
   });
-  if (error) throw error;
+  if (error) { captureServerError(error, { where: 'createEntry', projectId, activityId, factor_unit_in: factor?.unit_in, unit }); throw error; }
   revalidatePath(`/projects/${projectId}`);
-  redirect(`/projects/${projectId}`);
+  redirect(`/projects/${projectId}?success=true&message=Kayıt başarıyla oluşturuldu`);
 }
 
 

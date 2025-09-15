@@ -810,3 +810,60 @@ Supabase (prod)
 - Test locally, then deploy to Vercel, and configure Supabase (schema + storage)
 
 If you want, I can scaffold the initial files (Button, SSR client, i18n, Header, auth actions, base pages) directly into your repo so you can run it immediately.
+//////////////////////////////////////////////////////////////////
+
+✅ 1. Yeni Kullanıcı Deneyimi ve "Onboarding"
+(Kullanıcıyı ilk andan itibaren kazanmak)
+
+[ ] Ücretsiz Karbon Tahmincisi: Web sitesinin ana sayfasında, üye olmadan kullanılabilen, projenin temel bilgilerini (m², kat sayısı vb.) girerek tahmini bir karbon ayak izi sunan basit bir hesap makinesi var mı? (Bu, kullanıcıya anında değer sunar ve üye olmaya teşvik eder).
+
+[ ] Örnek Proje: Her yeni kullanıcı için, içinde sahte veriler olan bir "Demo Projesi" otomatik olarak oluşturuluyor mu? (Bu, kullanıcının boş bir ekran yerine, uygulamanın nasıl çalıştığını ve neye benzediğini anında görmesini sağlar).
+
+[ ] Adım Adım Kurulum Sihirbazı: Kullanıcı ilk projesini oluştururken, onu "Proje adını gir", "Şimdi şantiye adresini belirt" gibi adım adım yönlendiren bir kurulum sihirbazı var mı?
+
+✅ 2. Veri Girişi ve Yönetimi (Projenin Kalbi)
+(Veri girişini bir angarya olmaktan çıkarıp, akıllı bir sürece dönüştürmek)
+
+[ ] Akıllı Kütüphane: Önceden tanımlanmış, standart bir malzeme/aktivite kütüphanesi var mı? Kullanıcı bu kütüphaneden seçim yaptığında birimler otomatik olarak doluyor mu?
+
+[ ] Favoriler ve Kişisel Kütüphane: Sistem, kullanıcının en sık girdiği verileri öğrenip, "Favoriler" veya "Sık Kullanılanlar" adında kişisel bir liste oluşturuyor mu?
+
+[ ] Kanıt Yükleme (Denetlenebilirlik): Her veri girişi için fatura/irsaliye fotoğrafı veya PDF'i yükleme özelliği var mı? Bu özellik raporların güvenilirliği için kritik.
+
+[ ] Toplu Veri Yükleme (Excel Import): Kullanıcının elindeki mevcut keşif özeti veya metraj listesi gibi Excel dosyalarını sisteme tek seferde yükleyip, verileri otomatik olarak tanıyan bir özellik var mı? (Bu, büyük bir zaman tasarrufu sağlar).
+
+[ ] Yapay Zeka Destekli Fatura Okuma (OCR): Kullanıcı bir fatura fotoğrafı yüklediğinde, AI'ın faturadaki malzeme adı, miktar, tarih gibi bilgileri otomatik olarak okuyup ilgili form alanlarını doldurma özelliği planlandı mı? (Bu, en "wow" özelliklerden biri olur).
+
+[ ] Hata ve Kopya Tespiti: Kullanıcı aynı faturayı veya bariz şekilde yanlış bir veriyi (örn: 100.000 m³ beton) girmeye çalıştığında sistem bir uyarı veriyor mu?
+
+✅ 3. Ana Panel (Dashboard) ve Analizler
+(Veriyi bilgiye, bilgiyi aksiyona dönüştürmek)
+
+[ ] Derinlemesine Analiz (Drill-Down): Ana Panel'deki "En Yüksek Emisyon Kaynakları" grafiğinde, kullanıcı "Beton" çubuğuna tıkladığında, sadece betonla ilgili tüm veri girişlerinin listelendiği bir detaya gidebiliyor mu?
+
+[ ] Kıyaslama (Benchmarking): Panel, kullanıcının projesinin karbon performansını, sistemdeki diğer anonimleştirilmiş projelerin ortalamasıyla kıyaslayan bir gösterge sunuyor mu? ("Sektör ortalamasının %15 altındasınız" gibi).
+
+[ ] Tahminleme (Forecasting): Projenin mevcut ilerleme hızına bakarak, projenin sonunda tahmini toplam karbon ayak izinin ne olacağını öngören bir modül var mı?
+
+✅ 4. Raporlama ve Dışa Aktarma
+(Raporları profesyonel bir iletişim aracına dönüştürmek)
+
+[ ] Özelleştirilebilir Rapor Şablonları: Kullanıcının farklı ihtiyaçlara yönelik (örn: "Banka Kredisi Başvurusu İçin Özet", "Avrupalı Müşteri İçin Detaylı Rapor") farklı rapor şablonları seçebilme imkanı var mı?
+
+[ ] Kurumsal Kimlik: Kullanıcının raporlara kendi şirketinin logosunu ekleyebilme özelliği var mı?
+
+[ ] Denetim Raporu (Audit Trail): Herhangi bir anlaşmazlık durumunda, proje boyunca girilen tüm verilerin, kimin tarafından ne zaman girildiği ve kanıt belgesinin ne olduğunu gösteren detaylı bir "aktivite kaydı" raporu alınabiliyor mu?
+
+✅ 5. Yapay Zeka ve Optimizasyon Motoru
+(Yazılımı bir hesap makinesinden, bir danışmana dönüştürmek)
+
+[ ] "Eğer-Öyleyse" Senaryo Analizi: Kullanıcının farklı malzemeler veya yöntemler denemesini sağlayan bir simülasyon arayüzü var mı? Örn: "Taşıyıcı sistemde çelik yerine ahşap kullansaydık ne olurdu?" butonuna basınca karbon ve maliyet farkını gösteren bir analiz.
+
+[ ] Alternatif Malzeme/Tedarikçi Önerileri: AI, kullanıcının projesine ve lokasyonuna göre, daha düşük karbonlu alternatif malzemeler ve bu malzemeleri satan yerel tedarikçiler önerebiliyor mu?
+
+[ ] Lojistik Optimizasyonu: Nakliye verilerini analiz ederek, "aynı bölgeden gelen farklı malzemelerin sevkiyatını birleştirerek hem maliyeti hem de emisyonu düşürebilirsin" gibi lojistik önerileri sunuyor mu?
+
+✅ 6. Ekip Yönetimi ve İşbirliği
+[ ] Kullanıcı Rolleri ve İzinler: Proje sahibi, bir "Admin", bir "Proje Müdürü" (her şeyi gören ama silme yetkisi olmayan) ve bir "Şantiye Şefi" (sadece veri giren) gibi farklı kullanıcı rolleri atayabiliyor mu?
+
+[ ] Görev Atama ve Bildirimler: Bir yöneticinin, şantiye şefine "Bu haftanın yakıt fişlerini yükle" gibi bir görev atayabildiği ve tamamlandığında bildirim aldığı bir sistem var mı?

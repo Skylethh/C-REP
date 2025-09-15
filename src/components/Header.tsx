@@ -130,15 +130,57 @@ export function Header({ user }: { user?: { email?: string } | null }) {
             </Link>
           </div>
           
-          <div className="flex items-center gap-2">
-            <span className="hidden sm:inline text-xs text-white/70 bg-white/10 px-2 py-1 rounded-full">
-              {user.email}
-            </span>
-            <Link href="/profile">
-              <Button variant="ghost" size="sm" className="text-sm hover:text-leaf-400">
-                Profil
-              </Button>
-            </Link>
+          {/* User profile dropdown */}
+          <div className="relative group">
+            <button className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors border border-transparent hover:border-white/10">
+              <span className="hidden sm:inline text-sm font-medium text-white/90 bg-white/10 px-3 py-1 rounded-full">
+                {user.email ? user.email.split('@')[0] : 'Kullanıcı'}
+              </span>
+              <span className="text-sm font-medium text-white">Profil</span>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-transform group-hover:rotate-180">
+                <path d="m6 9 6 6 6-6"/>
+              </svg>
+            </button>
+            
+            {/* Dropdown menu */}
+            <div className="absolute right-0 mt-1 w-56 rounded-lg shadow-glow-sm backdrop-blur-xl bg-gradient-to-b from-emerald-900/90 to-ocean-950/90 border border-white/20 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50 overflow-hidden">
+              {/* User info header */}
+              <div className="px-4 py-3 border-b border-white/10 bg-white/5">
+                <p className="text-sm font-medium text-white truncate">{user.email}</p>
+                <p className="text-xs text-white/60 mt-1">Kullanıcı</p>
+              </div>
+              
+              <div className="py-2">
+                <Link href="/profile" className="flex items-center px-4 py-2.5 text-sm text-white/90 hover:text-white hover:bg-white/10 transition-colors">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-leaf-400">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                  Profil Ayarları
+                </Link>
+                {/* Organizasyon sayfası kaldırıldı */}
+                <div className="border-t border-white/10 my-1"></div>
+                <button 
+                  className="flex items-center w-full text-left px-4 py-2.5 text-sm text-red-300 hover:text-red-200 hover:bg-red-950/30 transition-colors"
+                  onClick={async () => {
+                    try {
+                      const { signOut } = await import('@/app/auth/actions');
+                      await signOut();
+                    } catch (error) {
+                      console.error("Çıkış yapılırken hata oluştu:", error);
+                      window.location.href = "/"; // Fallback redirect
+                    }
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  Çıkış Yap
+                </button>
+              </div>
+            </div>
           </div>
           
           {/* Mobile menu button */}
@@ -165,8 +207,28 @@ export function Header({ user }: { user?: { email?: string } | null }) {
               Fırsatlar
             </Link>
             <Link href="/profile" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
-              Profil
+              Profil Ayarları
             </Link>
+            <button 
+              className="flex items-center text-red-300 hover:text-red-200 transition-colors text-left w-full py-2"
+              onClick={async () => {
+                setMobileMenuOpen(false);
+                try {
+                  const { signOut } = await import('@/app/auth/actions');
+                  await signOut();
+                } catch (error) {
+                  console.error("Çıkış yapılırken hata oluştu:", error);
+                  window.location.href = "/"; // Fallback redirect
+                }
+              }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                <polyline points="16 17 21 12 16 7"></polyline>
+                <line x1="21" y1="12" x2="9" y2="12"></line>
+              </svg>
+              Çıkış Yap
+            </button>
           </div>
         </div>
       )}

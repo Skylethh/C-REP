@@ -10,7 +10,38 @@ export const messages = {
       signup: 'Kayıt Ol',
       signout: 'Çıkış Yap'
     },
-    brand: 'C-rep'
+    brand: 'C-rep',
+    dashboard: {
+      title: 'Dashboard',
+      welcome: 'Hoş geldin'
+    },
+    stats: {
+      totalProjects: 'Toplam Projeler',
+      last30Emissions: 'Son 30 Gün Emisyonu',
+      recentEntries: 'Son Kayıtlar',
+      activeCompany: 'Aktif Şirket'
+    },
+    cards: {
+      myProjects: 'Projelerim',
+      recentActivities: 'Son Aktiviteler',
+      emissionAnalysis: 'Emisyon Analizi',
+      emissionByType: 'Tür bazında CO2e',
+      emissionByScope: 'Scope bazında CO2e',
+      entries: 'Kayıtlar',
+      export: 'CSV Dışa Aktar'
+    },
+    cta: {
+      viewAll: 'Tümünü Gör',
+      createProject: 'Proje Oluştur',
+      apply: 'Uygula'
+    },
+    misc: {
+      noData: 'Henüz veri yok',
+      noEvidence: 'Bu kayda ekli kanıt yok.',
+      unauthorized: 'Yetkisiz',
+      notFound: 'Bulunamadı',
+      exportHint: 'Filtreler dışa aktarmaya yansıtılır.'
+    }
   },
   en: {
     nav: {
@@ -23,7 +54,38 @@ export const messages = {
       signup: 'Sign Up',
       signout: 'Sign Out'
     },
-    brand: 'C-rep'
+    brand: 'C-rep',
+    dashboard: {
+      title: 'Dashboard',
+      welcome: 'Welcome'
+    },
+    stats: {
+      totalProjects: 'Total Projects',
+      last30Emissions: 'Last 30 Days Emissions',
+      recentEntries: 'Recent Entries',
+      activeCompany: 'Active Company'
+    },
+    cards: {
+      myProjects: 'My Projects',
+      recentActivities: 'Recent Activities',
+      emissionAnalysis: 'Emission Analysis',
+      emissionByType: 'CO2e by Type',
+      emissionByScope: 'CO2e by Scope',
+      entries: 'Entries',
+      export: 'Export CSV'
+    },
+    cta: {
+      viewAll: 'View All',
+      createProject: 'Create Project',
+      apply: 'Apply'
+    },
+    misc: {
+      noData: 'No data yet',
+      noEvidence: 'No evidence attached to this entry.',
+      unauthorized: 'Unauthorized',
+      notFound: 'Not found',
+      exportHint: 'Filters apply to the export.'
+    }
   }
 } as const;
 

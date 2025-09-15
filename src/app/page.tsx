@@ -5,8 +5,17 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/button';
+import { createClient } from '@/lib/server';
+import { redirect } from 'next/navigation';
 
-export default function Page() {
+export default async function Page() {
+  // Check if user is logged in, redirect to dashboard if they are
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  if (data?.user) {
+    redirect('/dashboard');
+  }
+
   return (
     <div className="min-h-screen">
       {/* Background Elements */}
@@ -397,5 +406,3 @@ export default function Page() {
     </div>
   );
 }
-
-

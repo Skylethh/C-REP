@@ -3,7 +3,7 @@ import { supabaseBrowser } from '@/lib/client';
 import { deleteEvidence } from '@/app/projects/[id]/evidence/server';
 import { useEffect, useState } from 'react';
 
-export function EvidenceList({ items }: { items: { id: string; file_path: string; size: number; mime?: string }[] }) {
+export function EvidenceList({ projectId, items }: { projectId: string; items: { id: string; file_path: string; size: number; mime?: string }[] }) {
   const [urls, setUrls] = useState<Record<string, string>>({});
   useEffect(() => {
     (async () => {
@@ -30,7 +30,7 @@ export function EvidenceList({ items }: { items: { id: string; file_path: string
             </div>
             <div className="flex items-center gap-3">
               <span className="text-green-300/80 text-sm">{Math.round(f.size/1024)} KB</span>
-              <form action={deleteEvidence.bind(null, f.file_path.split('/')[1])}>
+              <form action={deleteEvidence.bind(null, projectId)}>
                 <input type="hidden" name="id" value={f.id} />
                 <input type="hidden" name="file_path" value={f.file_path} />
                 <button className="text-red-400 text-sm underline" type="submit">Sil</button>

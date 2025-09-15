@@ -6,6 +6,7 @@ import './globals.css';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { ToastContainer } from '@/components/Toast';
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
@@ -33,6 +34,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         <SkipLink />
         <Header user={user ? { email: user.email } : null} />
         <main id="main" className="container mx-auto px-4 py-8">{children}</main>
+        <ToastContainer />
       </body>
     </html>
   );
