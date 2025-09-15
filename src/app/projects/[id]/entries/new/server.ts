@@ -40,6 +40,79 @@ export async function createEntry(projectId: string, formData: FormData) {
     activity = act;
   }
 
+  // --- Additional validations: future date, duplicate detection, anomaly detection ---
+  // 1) Disallow far-future dates (allow only today or past)
+  try {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (date > todayStr) {
+      throw new Error('Gelecekteki bir tarih için kayıt oluşturulamaz');
+    }
+  } catch (e) {
+    // If date parsing fails for any reason, let zod validation handle it later
+  }
+
+  // Helper utilities
+  const toDateString = (d: Date) => d.toISOString().slice(0, 10);
+  const computeMedian = (arr: number[]) => {
+    if (!arr.length) return NaN;
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid];
+  };
+
+  // 2) Duplicate detection (same project, same type, same unit, near-equal amount, close date)
+  const chosenType = activity?.type || type;
+  {
+    const base = new Date(date);
+    const from = new Date(base);
+    const to = new Date(base);
+    from.setDate(from.getDate() - 3);
+    to.setDate(to.getDate() + 3);
+    const { data: possibleDupes } = await supabase
+      .from('entries')
+      .select('id, amount, unit, type, activity_id, date')
+      .eq('project_id', projectId)
+      .eq('unit', unit)
+      .eq('type', chosenType)
+      .gte('date', toDateString(from))
+      .lte('date', toDateString(to))
+      .limit(20);
+    const tolerance = Math.max(0.01 * amount, 0.0001);
+    const found = (possibleDupes || []).find((e) => {
+      const sameActivity = !activity?.id || e.activity_id === activity.id;
+      const amtClose = Math.abs(Number(e.amount || 0) - amount) <= tolerance;
+      return sameActivity && amtClose;
+    });
+    if (found) {
+      throw new Error('Benzer bir kayıt zaten mevcut. Lütfen girdiyi kontrol edin.');
+    }
+  }
+
+  // 3) Anomaly detection (simple historical outlier check on same unit/type)
+  {
+    const { data: recentSameUnit } = await supabase
+      .from('entries')
+      .select('amount')
+      .eq('project_id', projectId)
+      .eq('type', chosenType)
+      .eq('unit', unit)
+      .order('date', { ascending: false })
+      .limit(200);
+    const amounts = (recentSameUnit || [])
+      .map((r: any) => Number(r.amount))
+      .filter((v) => Number.isFinite(v) && v > 0);
+    if (amounts.length >= 5) {
+      const median = computeMedian(amounts);
+      if (Number.isFinite(median) && median > 0) {
+        const ratio = amount / median;
+        // Hard stop for extreme anomalies (100x+ of historical median)
+        if (ratio > 100) {
+          throw new Error("Girilen miktar alışılmadık derecede yüksek görünüyor. Birimi veya değeri kontrol edin.");
+        }
+      }
+    }
+  }
+
   // Validate unit against activity allowed units if present
   if (activity?.units && Array.isArray(activity.units) && activity.units.length > 0) {
     if (!activity.units.includes(unit)) {

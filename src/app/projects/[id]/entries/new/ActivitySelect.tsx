@@ -4,6 +4,7 @@ import { supabaseBrowser } from '@/lib/client';
 
 export default function ActivitySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [items, setItems] = useState<Array<{ id: string; name: string; type: string }>>([]);
+  const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(false);
   useEffect(() => {
@@ -19,8 +20,12 @@ export default function ActivitySelect({ value, onChange }: { value: string; onC
         const term = q.trim();
         query = query.or(`name.ilike.%${term}%,type.ilike.%${term}%`);
       }
-      const { data } = await query;
-      setItems(data || []);
+      const [acts, favs] = await Promise.all([
+        query,
+        supabaseBrowser.from('user_favorites').select('activity_id')
+      ]);
+      setItems(acts.data || []);
+      setFavorites(new Set((favs.data || []).map((f: any) => f.activity_id)));
       setLoading(false);
     })();
   }, [q]);
@@ -28,6 +33,32 @@ export default function ActivitySelect({ value, onChange }: { value: string; onC
   const groups: Record<string, { id: string; name: string; type: string }[]> = {};
   for (const it of filtered) {
     groups[it.type] = groups[it.type] || []; groups[it.type].push(it);
+  }
+  async function toggleFavorite(activityId: string) {
+    try {
+      if (!activityId) return;
+      const isFav = favorites.has(activityId);
+      if (isFav) {
+        const { error } = await supabaseBrowser
+          .from('user_favorites')
+          .delete()
+          .eq('activity_id', activityId);
+        if (!error) {
+          const next = new Set(favorites);
+          next.delete(activityId);
+          setFavorites(next);
+        }
+      } else {
+        const { error } = await supabaseBrowser
+          .from('user_favorites')
+          .insert({ activity_id: activityId });
+        if (!error) {
+          const next = new Set(favorites);
+          next.add(activityId);
+          setFavorites(next);
+        }
+      }
+    } catch {}
   }
   return (
     <div className="space-y-3">
@@ -59,6 +90,13 @@ export default function ActivitySelect({ value, onChange }: { value: string; onC
           }}
         >
           <option value="" className="bg-emerald-900 text-white">{loading ? 'Yükleniyor...' : '-- Aktivite Seçin --'}</option>
+          {favorites.size > 0 ? (
+            <optgroup label="★ Favoriler" className={"font-medium bg-emerald-900 text-white"}>
+              {items.filter((it) => favorites.has(it.id)).map((it) => (
+                <option key={it.id} value={it.id} className="bg-emerald-900 text-white py-1">{it.name}</option>
+              ))}
+            </optgroup>
+          ) : null}
           {Object.entries(groups).map(([type, arr]) => {
             // Türe göre renk ve ikon belirleme
             let typeLabel = type;
@@ -115,8 +153,13 @@ export default function ActivitySelect({ value, onChange }: { value: string; onC
           Aramanızla eşleşen aktivite bulunamadı
         </div>
       ) : (
-        <div className="text-xs text-white/60 px-1">
-          {filtered.length} aktivite listeleniyor
+        <div className="flex items-center justify-between text-xs text-white/60 px-1">
+          <span>{filtered.length} aktivite listeleniyor</span>
+          {value ? (
+            <button type="button" className="text-amber-300 hover:text-amber-200 underline" onClick={() => toggleFavorite(value)}>
+              {favorites.has(value) ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+            </button>
+          ) : null}
         </div>
       )}
     </div>

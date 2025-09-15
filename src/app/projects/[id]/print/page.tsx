@@ -6,7 +6,7 @@ export default async function PrintPage({ params }: { params: { id: string } }) 
   const supabase = await createClient();
   const { data: project } = await supabase
     .from('projects')
-    .select('id, name, description')
+    .select('id, name, description, organization_id, organizations(logo_url, name)')
     .eq('id', params.id)
     .maybeSingle();
   const { data: entries } = await supabase
@@ -15,10 +15,19 @@ export default async function PrintPage({ params }: { params: { id: string } }) 
     .eq('project_id', params.id)
     .order('date', { ascending: true });
 
+  const org: any = (project as any)?.organizations || null;
+
   return (
     <div className="p-8 print:p-0">
-      <h1 className="text-2xl font-semibold mb-2">{project?.name}</h1>
-      <p className="mb-6 text-green-300/80">{project?.description}</p>
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h1 className="text-2xl font-semibold mb-1">{project?.name}</h1>
+          <p className="text-green-300/80">{project?.description}</p>
+        </div>
+        {org?.logo_url ? (
+          <img src={org.logo_url} alt={org?.name || 'Logo'} className="h-12 w-auto object-contain" />
+        ) : null}
+      </div>
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="border-b border-white/20">

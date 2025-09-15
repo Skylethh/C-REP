@@ -14,6 +14,7 @@ interface EmissionsChartProps {
 
 export function EmissionsChart({ data, total }: EmissionsChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
+  const legendRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     if (!chartRef.current || !data || data.length === 0) return;
@@ -101,7 +102,7 @@ export function EmissionsChart({ data, total }: EmissionsChartProps) {
     
   }, [data, total]);
   
-  // Generate legend items
+  // Generate legend items (clickable to /entries with filters)
   const legendItems = data.map((item, index) => {
     const colors = [
       'bg-emerald-500',
@@ -112,11 +113,15 @@ export function EmissionsChart({ data, total }: EmissionsChartProps) {
     ];
     
     return (
-      <div key={index} className="flex items-center gap-2">
+      <a
+        key={index}
+        href={`/entries?type=${encodeURIComponent(item.type)}`}
+        className="flex items-center gap-2 hover:text-white"
+      >
         <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]}`}></div>
         <span className="text-xs text-white/70">{item.type}</span>
         <span className="text-xs font-medium">{item.value.toFixed(1)} kg</span>
-      </div>
+      </a>
     );
   });
   
@@ -131,7 +136,7 @@ export function EmissionsChart({ data, total }: EmissionsChartProps) {
         ></canvas>
       </div>
       
-      <div className="grid grid-cols-2 gap-2 mt-4">
+      <div ref={legendRef} className="grid grid-cols-2 gap-2 mt-4">
         {legendItems}
       </div>
     </div>
