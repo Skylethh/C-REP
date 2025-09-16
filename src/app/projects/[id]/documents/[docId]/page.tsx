@@ -17,7 +17,7 @@ async function getSignedUrl(supabase: any, projectId: string, path: string) {
   return data?.signedUrl || null;
 }
 
-export default async function DocumentDetailPage({ params }: { params: { id: string, docId: string } }) {
+export default async function DocumentDetailPage({ params, searchParams }: { params: { id: string, docId: string }, searchParams?: { [key: string]: string | string[] | undefined } }) {
   const projectId = params.id;
   const docId = params.docId;
 
@@ -40,6 +40,10 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
     .order('rev_no', { ascending: false });
   if (revErr) return <div>Revizyonlar yüklenemedi: {revErr.message}</div>;
 
+  // Flash messages via query params
+  const flashError = typeof searchParams?.error === 'string' ? decodeURIComponent(searchParams!.error) : '';
+  const flashSuccess = typeof searchParams?.success === 'string' ? decodeURIComponent(searchParams!.success) : '';
+
   async function renameAction(formData: FormData) {
     'use server';
     const name = String(formData.get('name') || '').trim();
@@ -60,8 +64,29 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase.from('documents').update({ code }).eq('id', docId);
+    // Ensure unique per project
+    const { data: docRow } = await supabase.from('documents').select('project_id').eq('id', docId).single();
+    if (!docRow) redirect((`/projects/${projectId}/documents/${docId}?error=${encodeURIComponent('Doküman bulunamadı')}` as unknown) as Route);
+    const { data: exists } = await supabase
+      .from('documents')
+      .select('id')
+      .eq('project_id', docRow.project_id)
+      .eq('code', code)
+      .neq('id', docId)
+      .limit(1);
+    if (exists && exists.length > 0) {
+      redirect((`/projects/${projectId}/documents/${docId}?error=${encodeURIComponent('Bu kod bu projede zaten kullanılıyor. Lütfen farklı bir kod deneyin.')}` as unknown) as Route);
+    }
+    const { error: updErr } = await supabase.from('documents').update({ code }).eq('id', docId);
+    if (updErr) {
+      // Fallback: unique violation or other error
+      const msg = updErr.code === '23505'
+        ? 'Bu kod bu projede zaten kullanılıyor. Lütfen farklı bir kod deneyin.'
+        : 'Kod güncellenirken hata oluştu.';
+      redirect((`/projects/${projectId}/documents/${docId}?error=${encodeURIComponent(msg)}` as unknown) as Route);
+    }
     revalidatePath(`/projects/${projectId}/documents/${docId}`);
+    redirect((`/projects/${projectId}/documents/${docId}?success=${encodeURIComponent('Kod güncellendi.')}` as unknown) as Route);
   }
 
   async function revertAction(formData: FormData) {
@@ -93,12 +118,36 @@ export default async function DocumentDetailPage({ params }: { params: { id: str
     // Ensure not current revision
     const { data: d } = await supabase.from('documents').select('current_revision').eq('id', docId).single();
     if (!d || d.current_revision === rev) return;
+    // Get file_path for storage cleanup before deleting
+    const { data: revRow } = await supabase
+      .from('document_revisions')
+      .select('file_path')
+      .eq('document_id', docId)
+      .eq('rev_no', rev)
+      .single();
     await supabase.from('document_revisions').delete().eq('document_id', docId).eq('rev_no', rev);
-    revalidatePath(`/projects/${projectId}/documents/${docId}`);
+    // Best-effort: remove file from Storage
+    try {
+      if (revRow?.file_path) {
+        const storageKey = revRow.file_path.replace(/^project-files\//, '');
+        await supabase.storage.from('project-files').remove([storageKey]);
+      }
+      revalidatePath(`/projects/${projectId}/documents/${docId}`);
+      redirect((`/projects/${projectId}/documents/${docId}?success=${encodeURIComponent('Revizyon silindi.')}` as unknown) as Route);
+    } catch (e) {
+      // ignore storage errors; DB delete already happened
+      revalidatePath(`/projects/${projectId}/documents/${docId}`);
+      redirect((`/projects/${projectId}/documents/${docId}?error=${encodeURIComponent('Revizyon verisi silindi ancak dosya kaldırılamadı.')}` as unknown) as Route);
+    }
   }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
+      {(flashError || flashSuccess) && (
+        <div className={`rounded border px-3 py-2 text-sm ${flashError ? 'border-red-500/40 text-red-300 bg-red-500/10' : 'border-emerald-500/40 text-emerald-300 bg-emerald-500/10'}`}>
+          {flashError || flashSuccess}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <div className="text-white/70 text-xs mb-1">Proje #{projectId}</div>
