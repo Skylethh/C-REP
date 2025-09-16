@@ -1,7 +1,7 @@
 {
-  "/dashboard/page": "app/dashboard/page.js",
   "/projects/[id]/page": "app/projects/[id]/page.js",
-  "/projects/[id]/daily-logs/page": "app/projects/[id]/daily-logs/page.js",
-  "/projects/[id]/daily-logs/new/page": "app/projects/[id]/daily-logs/new/page.js",
-  "/projects/[id]/daily-logs/[logId]/page": "app/projects/[id]/daily-logs/[logId]/page.js"
+  "/projects/[id]/rfi/page": "app/projects/[id]/rfi/page.js",
+  "/projects/[id]/rfi/[rfiId]/page": "app/projects/[id]/rfi/[rfiId]/page.js",
+  "/dashboard/page": "app/dashboard/page.js",
+  "/projects/[id]/documents/page": "app/projects/[id]/documents/page.js"
 }

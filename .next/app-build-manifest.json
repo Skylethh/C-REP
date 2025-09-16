@@ -70,6 +70,31 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/projects/[id]/daily-logs/[logId]/page.js"
+    ],
+    "/reports/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/reports/page.js"
+    ],
+    "/projects/[id]/entries/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/projects/[id]/entries/new/page.js"
+    ],
+    "/projects/[id]/rfi/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/projects/[id]/rfi/page.js"
+    ],
+    "/projects/[id]/rfi/[rfiId]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/projects/[id]/rfi/[rfiId]/page.js"
+    ],
+    "/projects/[id]/documents/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/projects/[id]/documents/page.js"
     ]
   }
 }

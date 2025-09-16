@@ -33,6 +33,7 @@ declare namespace __next_route_internal_types__ {
 
   type StaticRoutes = 
     | `/`
+    | `/api/documents/download`
     | `/api/import-entries`
     | `/api/sentry-example-api`
     | `/auth/callback`
@@ -53,6 +54,8 @@ declare namespace __next_route_internal_types__ {
     | `/projects/${SafeSlug<T>}/daily-logs`
     | `/projects/${SafeSlug<T>}/daily-logs/${SafeSlug<T>}`
     | `/projects/${SafeSlug<T>}/daily-logs/new`
+    | `/projects/${SafeSlug<T>}/documents`
+    | `/projects/${SafeSlug<T>}/documents/${SafeSlug<T>}`
     | `/projects/${SafeSlug<T>}/entries/import`
     | `/projects/${SafeSlug<T>}/entries/new`
     | `/projects/${SafeSlug<T>}/export`

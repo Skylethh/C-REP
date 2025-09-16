@@ -4,6 +4,7 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { DailyLogPhotoUploader } from '@/components/DailyLogPhotoUploader';
 import { DailyLogPhotoGrid } from '@/components/DailyLogPhotoGrid';
+import { DailyLogMaterialForm } from '@/components/DailyLogMaterialForm';
 
 export default async function DailyLogDetailPage({ params }: { params: { id: string; logId: string } }) {
   const { id, logId } = params;
@@ -43,6 +44,17 @@ export default async function DailyLogDetailPage({ params }: { params: { id: str
     redirect((`/projects/${id}/daily-logs/${logId}` as unknown) as Route);
   }
 
+  // Optional: placeholder server action to set suggested weather value
+  async function setSuggestedWeather() {
+    'use server';
+    const supabase = await createClient();
+    // Placeholder suggestion logic. Later, fetch real data using project location.
+    const suggestion = 'Güneşli';
+    const { error } = await supabase.from('daily_logs').update({ weather: suggestion }).eq('id', logId);
+    if (error) redirect((`/projects/${id}/daily-logs/${logId}?error=${encodeURIComponent(error.message)}` as unknown) as Route);
+    redirect((`/projects/${id}/daily-logs/${logId}` as unknown) as Route);
+  }
+
   async function saveSummary(formData: FormData) {
     'use server';
     const supabase = await createClient();
@@ -63,6 +75,15 @@ export default async function DailyLogDetailPage({ params }: { params: { id: str
     redirect((`/projects/${id}/daily-logs/${logId}` as unknown) as Route);
   }
 
+  async function deleteManpower(formData: FormData) {
+    'use server';
+    const supabase = await createClient();
+    const idToDelete = String(formData.get('id'));
+    const { error } = await supabase.from('daily_log_manpower').delete().eq('id', idToDelete);
+    if (error) redirect((`/projects/${id}/daily-logs/${logId}?error=${encodeURIComponent(error.message)}` as unknown) as Route);
+    redirect((`/projects/${id}/daily-logs/${logId}` as unknown) as Route);
+  }
+
   async function addEquipment(formData: FormData) {
     'use server';
     const supabase = await createClient();
@@ -73,13 +94,44 @@ export default async function DailyLogDetailPage({ params }: { params: { id: str
     redirect((`/projects/${id}/daily-logs/${logId}` as unknown) as Route);
   }
 
+  async function deleteEquipment(formData: FormData) {
+    'use server';
+    const supabase = await createClient();
+    const idToDelete = String(formData.get('id'));
+    const { error } = await supabase.from('daily_log_equipment').delete().eq('id', idToDelete);
+    if (error) redirect((`/projects/${id}/daily-logs/${logId}?error=${encodeURIComponent(error.message)}` as unknown) as Route);
+    redirect((`/projects/${id}/daily-logs/${logId}` as unknown) as Route);
+  }
+
   async function addMaterial(formData: FormData) {
     'use server';
     const supabase = await createClient();
     const activity_id = String(formData.get('activity_id') || '');
     const quantity = Number(formData.get('quantity') || 0);
     const unit = String(formData.get('unit') || '');
+    // Server-side unit validation against the activity's allowed units
+    const { data: act, error: actErr } = await supabase
+      .from('activities')
+      .select('id, default_unit, units')
+      .eq('id', activity_id)
+      .maybeSingle();
+    if (actErr || !act) {
+      redirect((`/projects/${id}/daily-logs/${logId}?error=${encodeURIComponent(actErr?.message || 'activity not found')}` as unknown) as Route);
+    }
+    const allowedUnits: string[] = Array.from(new Set([act.default_unit, ...((Array.isArray(act.units) ? act.units : []) as string[])]));
+    if (!allowedUnits.includes(unit)) {
+      redirect((`/projects/${id}/daily-logs/${logId}?error=${encodeURIComponent('Seçilen birim bu faaliyet için geçerli değil')}` as unknown) as Route);
+    }
     const { error } = await supabase.from('daily_log_materials').insert({ log_id: logId, activity_id, quantity, unit });
+    if (error) redirect((`/projects/${id}/daily-logs/${logId}?error=${encodeURIComponent(error.message)}` as unknown) as Route);
+    redirect((`/projects/${id}/daily-logs/${logId}` as unknown) as Route);
+  }
+
+  async function deleteMaterial(formData: FormData) {
+    'use server';
+    const supabase = await createClient();
+    const idToDelete = String(formData.get('id'));
+    const { error } = await supabase.from('daily_log_materials').delete().eq('id', idToDelete);
     if (error) redirect((`/projects/${id}/daily-logs/${logId}?error=${encodeURIComponent(error.message)}` as unknown) as Route);
     redirect((`/projects/${id}/daily-logs/${logId}` as unknown) as Route);
   }
@@ -110,6 +162,11 @@ export default async function DailyLogDetailPage({ params }: { params: { id: str
               <button className="px-3 py-1.5 rounded border border-white/10 bg-white/10 hover:bg-white/20">{w}</button>
             </form>
           ))}
+          <form action={setSuggestedWeather}>
+            <button className="px-3 py-1.5 rounded border border-emerald-500/20 text-emerald-200 bg-emerald-500/10 hover:bg-emerald-500/20">
+              Öner (Beta)
+            </button>
+          </form>
         </div>
       </div>
 
@@ -133,7 +190,13 @@ export default async function DailyLogDetailPage({ params }: { params: { id: str
           {manpower.map((m: any) => (
             <div key={m.id} className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2">
               <div className="text-sm">{m.contractor || 'Taşeron'} • {m.trade || 'Meslek'} • {m.person_count} kişi</div>
-              <div className="text-xs text-white/60">{new Date(m.created_at).toLocaleTimeString()}</div>
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-white/60">{new Date(m.created_at).toLocaleTimeString()}</div>
+                <form action={deleteManpower}>
+                  <input type="hidden" name="id" value={m.id} />
+                  <button className="text-red-300 hover:text-red-200 text-xs border border-red-400/30 rounded px-2 py-0.5">Sil</button>
+                </form>
+              </div>
             </div>
           ))}
           {manpower.length === 0 && <div className="text-white/60 text-sm">Henüz iş gücü eklenmedi.</div>}
@@ -153,7 +216,13 @@ export default async function DailyLogDetailPage({ params }: { params: { id: str
           {equipment.map((e: any) => (
             <div key={e.id} className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2">
               <div className="text-sm">{e.equipment_name} • {e.hours} saat</div>
-              <div className="text-xs text-white/60">{new Date(e.created_at).toLocaleTimeString()}</div>
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-white/60">{new Date(e.created_at).toLocaleTimeString()}</div>
+                <form action={deleteEquipment}>
+                  <input type="hidden" name="id" value={e.id} />
+                  <button className="text-red-300 hover:text-red-200 text-xs border border-red-400/30 rounded px-2 py-0.5">Sil</button>
+                </form>
+              </div>
             </div>
           ))}
           {equipment.length === 0 && <div className="text-white/60 text-sm">Henüz ekipman eklenmedi.</div>}
@@ -172,24 +241,18 @@ export default async function DailyLogDetailPage({ params }: { params: { id: str
           {materials.map((m: any) => (
             <div key={m.id} className="flex items-center justify-between rounded border border-white/10 bg-white/5 px-3 py-2">
               <div className="text-sm">{m.activities?.name || 'Malzeme'} • {m.quantity} {m.unit}</div>
-              <div className="text-xs text-white/60">{new Date(m.created_at).toLocaleTimeString()}</div>
+              <div className="flex items-center gap-3">
+                <div className="text-xs text-white/60">{new Date(m.created_at).toLocaleTimeString()}</div>
+                <form action={deleteMaterial}>
+                  <input type="hidden" name="id" value={m.id} />
+                  <button className="text-red-300 hover:text-red-200 text-xs border border-red-400/30 rounded px-2 py-0.5">Sil</button>
+                </form>
+              </div>
             </div>
           ))}
           {materials.length === 0 && <div className="text-white/60 text-sm">Henüz malzeme eklenmedi.</div>}
         </div>
-        <form action={addMaterial} className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <select name="activity_id" className="form-input">
-            <option value="">— Malzeme Seç —</option>
-            {(activities || []).map((a: any) => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
-          <input type="number" min={0} step="0.01" name="quantity" placeholder="Miktar" className="form-input" />
-          <input type="text" name="unit" placeholder="Birim (ör: m3, kg)" className="form-input" />
-          <div className="md:col-span-2 flex items-center">
-            <button type="submit" className="btn-primary">+ Ekle</button>
-          </div>
-        </form>
+        <DailyLogMaterialForm activities={(activities as any) || []} action={addMaterial} />
       </details>
 
       {/* Photos */}
