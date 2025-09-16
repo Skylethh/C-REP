@@ -50,11 +50,17 @@ declare namespace __next_route_internal_types__ {
   type DynamicRoutes<T extends string = string> = 
     | `/invites/${SafeSlug<T>}`
     | `/projects/${SafeSlug<T>}`
+    | `/projects/${SafeSlug<T>}/daily-logs`
+    | `/projects/${SafeSlug<T>}/daily-logs/${SafeSlug<T>}`
+    | `/projects/${SafeSlug<T>}/daily-logs/new`
     | `/projects/${SafeSlug<T>}/entries/import`
     | `/projects/${SafeSlug<T>}/entries/new`
     | `/projects/${SafeSlug<T>}/export`
     | `/projects/${SafeSlug<T>}/members`
     | `/projects/${SafeSlug<T>}/print`
+    | `/projects/${SafeSlug<T>}/rfi`
+    | `/projects/${SafeSlug<T>}/rfi/${SafeSlug<T>}`
+    | `/projects/${SafeSlug<T>}/rfi/new`
 
   type RouteImpl<T> = 
     | StaticRoutes

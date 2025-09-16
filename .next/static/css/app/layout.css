@@ -1167,6 +1167,9 @@ video {
 .h-px {
   height: 1px;
 }
+.min-h-\[120px\] {
+  min-height: 120px;
+}
 .min-h-\[180px\] {
   min-height: 180px;
 }
@@ -1463,6 +1466,9 @@ video {
 }
 .break-words {
   overflow-wrap: break-word;
+}
+.break-all {
+  word-break: break-all;
 }
 .rounded {
   border-radius: 0.25rem;

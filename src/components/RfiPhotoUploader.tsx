@@ -1,0 +1,62 @@
+"use client";
+import { supabaseBrowser } from '@/lib/client';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
+async function sha256Hex(file: File): Promise<string> {
+  const buf = await file.arrayBuffer();
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function RfiPhotoUploader({ projectId, rfiId }: { projectId: string; rfiId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const router = useRouter();
+
+  async function handleUpload() {
+    if (!file) return;
+    setBusy(true); setError(null);
+    try {
+      if (file.size > 15 * 1024 * 1024) throw new Error('Max 15MB');
+      const hash = await sha256Hex(file);
+      const ext = file.name.split('.').pop() || 'bin';
+      // Keep bucket name as first path segment to satisfy extract_project_from_path(name)
+      const key = `project-files/${projectId}/rfi/${rfiId}/${hash}.${ext}`;
+
+      const { error: upErr } = await supabaseBrowser.storage.from('project-files').upload(key, file, { upsert: false, cacheControl: '3600' });
+      if (upErr && !upErr.message?.includes('exists')) throw upErr;
+
+      // Append to rfi.photos
+      const { data, error: selErr } = await supabaseBrowser.from('rfi').select('photos').eq('id', rfiId).maybeSingle();
+      if (selErr) throw selErr;
+      const current = Array.isArray(data?.photos) ? data?.photos : [];
+      const next = [...current, key];
+      const { error: updErr } = await supabaseBrowser.from('rfi').update({ photos: next }).eq('id', rfiId);
+      if (updErr) throw updErr;
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Fotoğraf eklendi', variant: 'success' } }));
+      }
+      setFile(null);
+      router.refresh();
+    } catch (e: any) {
+      setError(e?.message || 'Yükleme hatası');
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: e?.message || 'Yükleme hatası', variant: 'error' } }));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="rounded border border-white/10 bg-white/5 p-3">
+      <div className="text-sm mb-2">Fotoğraf ekle</div>
+      <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+      <button disabled={!file || busy} onClick={handleUpload} className="ml-2 btn-primary px-3 py-1.5">Yükle</button>
+      {error && <div className="text-xs text-red-300 mt-2">{error}</div>}
+    </div>
+  );
+}

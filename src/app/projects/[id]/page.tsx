@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { EvidenceList } from '@/components/EvidenceList';
 import { getMessages } from '@/i18n';
 
-export default async function ProjectDetail({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function ProjectDetail({ params, searchParams }: { params: { id: string }, searchParams: Record<string, string | string[] | undefined> }) {
   const { dict } = await getMessages();
-  const p = await params;
-  const sp = (await searchParams) || {};
+  const p = params;
+  const sp = searchParams || {} as Record<string, string | string[] | undefined>;
   const showSuccess = sp?.success === 'true';
   const successMessage = sp?.message as string || 'İşlem başarıyla tamamlandı';
   const supabase = await createClient();
@@ -125,6 +125,20 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                   <line x1="12" y1="15" x2="12" y2="3"></line>
                 </svg>
                 <span>CSV İndir</span>
+              </Link>
+
+              <Link 
+                href={`/projects/${project.id}/daily-logs`}
+                className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
+              >
+                Günlükler
+              </Link>
+
+              <Link 
+                href={`/projects/${project.id}/rfi`}
+                className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
+              >
+                RFI
               </Link>
             </div>
           </div>

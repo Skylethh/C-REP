@@ -1,8 +1,8 @@
 import { createEntry } from './server';
 import EntryForm from './EntryForm';
 
-export default async function NewEntryPage({ params }: { params: Promise<{ id: string }> }) {
-  const p = await params;
+export default async function NewEntryPage({ params }: { params: { id: string } }) {
+  const p = params;
   
   return (
     <div className="max-w-3xl mx-auto space-y-6">

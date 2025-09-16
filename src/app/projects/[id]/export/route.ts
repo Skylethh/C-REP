@@ -1,12 +1,12 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/server';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: projectId } = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new Response('Unauthorized', { status: 401 });
 
-  const projectId = params.id;
   const url = new URL(req.url);
   const start = url.searchParams.get('start') || '';
   const end = url.searchParams.get('end') || '';
