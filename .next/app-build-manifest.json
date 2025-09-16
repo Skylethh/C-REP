@@ -51,11 +51,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/projects/[id]/layout.js"
     ],
-    "/projects/[id]/entries/new/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/projects/[id]/entries/new/page.js"
-    ],
     "/projects/[id]/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
@@ -65,6 +60,16 @@
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/projects/[id]/daily-logs/page.js"
+    ],
+    "/projects/[id]/daily-logs/new/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/projects/[id]/daily-logs/new/page.js"
+    ],
+    "/projects/[id]/daily-logs/[logId]/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/projects/[id]/daily-logs/[logId]/page.js"
     ]
   }
 }

@@ -1,0 +1,13 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "bundle migrations",
+			"type": "shell",
+			"command": "npm run db:bundle",
+			"args": [],
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}

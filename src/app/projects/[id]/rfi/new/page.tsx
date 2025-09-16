@@ -13,8 +13,22 @@ export default async function NewRfiPage({ params }: { params: { id: string } })
     const supabase = await createClient();
     const title = String(formData.get('title') || '').trim();
     const description = String(formData.get('description') || '');
+    const to_role = String(formData.get('to_role') || '').trim() || null;
+    const due_date_raw = String(formData.get('due_date') || '').trim();
+    const due_date = due_date_raw ? due_date_raw : null;
+    const from_party = String(formData.get('from_party') || '').trim() || 'Biz';
+    const reference_text = String(formData.get('reference_text') || '').trim() || null;
   if (!title) redirect((`/projects/${id}/rfi/new?error=missing_title` as unknown) as Route);
-    const { error } = await supabase.from('rfi').insert({ project_id: id, title, description, created_by: user!.id });
+    const { error, data } = await supabase.rpc('create_rfi', {
+      p_project: id,
+      p_actor: user!.id,
+      p_title: title,
+      p_description: description,
+      p_to_role: to_role,
+      p_due_date: due_date,
+      p_from_party: from_party,
+      p_reference_text: reference_text,
+    });
   if (error) redirect((`/projects/${id}/rfi/new?error=${encodeURIComponent(error.message)}` as unknown) as Route);
   redirect((`/projects/${id}/rfi` as unknown) as Route);
   }
@@ -30,6 +44,24 @@ export default async function NewRfiPage({ params }: { params: { id: string } })
         <div>
           <label className="block text-sm mb-1">Açıklama</label>
           <textarea name="description" className="form-input min-h-[120px]" />
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Proje Referansları</label>
+          <input type="text" name="reference_text" placeholder="A-101 Paftası, 3. Kat" className="form-input" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm mb-1">Adreslenecek Rol (opsiyonel)</label>
+            <input type="text" name="to_role" placeholder="mimar, şantiye şefi..." className="form-input" />
+          </div>
+          <div>
+            <label className="block text-sm mb-1">Termin (opsiyonel)</label>
+            <input type="date" name="due_date" className="form-input" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Soran Taraf</label>
+          <input type="text" name="from_party" placeholder="Biz, X Taşeronu" className="form-input" defaultValue="Biz" />
         </div>
         <button type="submit" className="btn-primary">Kaydet</button>
       </form>

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/server';
 import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import { RfiPhotoUploader } from '@/components/RfiPhotoUploader';
+import { RfiPhotoGrid } from '@/components/RfiPhotoGrid';
 
 export default async function RfiDetailPage({ params }: { params: { id: string; rfiId: string } }) {
   const { id, rfiId } = params;
@@ -11,10 +12,25 @@ export default async function RfiDetailPage({ params }: { params: { id: string; 
 
   const { data: rfi, error } = await supabase
     .from('rfi')
-    .select('*')
+    .select('*, created_by')
     .eq('project_id', id)
     .eq('id', rfiId)
     .maybeSingle();
+  const { data: messages } = await supabase
+    .from('rfi_messages')
+    .select('id, author_id, message, created_at')
+    .eq('rfi_id', rfiId)
+    .order('created_at', { ascending: true });
+
+  async function postMessage(formData: FormData) {
+    'use server';
+    const supabase = await createClient();
+    const message = String(formData.get('message') || '').trim();
+    if (!message) return;
+    const { error } = await supabase.from('rfi_messages').insert({ rfi_id: rfiId, author_id: user!.id, message });
+    if (error) redirect((`/projects/${id}/rfi/${rfiId}?error=${encodeURIComponent(error.message)}` as unknown) as Route);
+    redirect((`/projects/${id}/rfi/${rfiId}` as unknown) as Route);
+  }
   if (error) return <div>RFI yüklenemedi: {error.message}</div>;
   if (!rfi) return <div>RFI bulunamadı</div>;
 
@@ -80,14 +96,44 @@ export default async function RfiDetailPage({ params }: { params: { id: string; 
 
       <div className="space-y-3 max-w-xl">
         <div className="text-white/70">Fotoğraflar</div>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {(Array.isArray(rfi.photos) ? rfi.photos : []).map((p: string) => (
-            <div key={p} className="rounded overflow-hidden border border-white/10 bg-white/5 p-2 text-xs break-all">
-              {p}
-            </div>
-          ))}
-        </div>
+        <RfiPhotoGrid keys={Array.isArray(rfi.photos) ? rfi.photos : []} projectId={id} rfiId={rfiId} />
         <RfiPhotoUploader projectId={id} rfiId={rfiId} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left: info panel */}
+        <div className="space-y-3">
+          <div className="glass rounded border border-white/10 p-4">
+            <div className="text-white/60 text-sm mb-1">Konu</div>
+            <div className="font-medium">{rfi.title}</div>
+          </div>
+          {rfi.reference_text && (
+            <div className="glass rounded border border-white/10 p-4">
+              <div className="text-white/60 text-sm mb-1">Referanslar</div>
+              <div>{rfi.reference_text}</div>
+            </div>
+          )}
+        </div>
+
+        {/* Right: message thread */}
+        <div className="space-y-4">
+          <div className="text-white/70">Yazışmalar</div>
+          <div className="space-y-2 max-h-[360px] overflow-auto pr-1">
+            {(messages || []).map((m: any) => (
+              <div key={m.id} className="glass rounded border border-white/10 p-3">
+                <div className="text-xs text-white/60 mb-1">{m.author_id} • {new Date(m.created_at).toLocaleString()}</div>
+                <div className="whitespace-pre-wrap">{m.message}</div>
+              </div>
+            ))}
+            {(!messages || messages.length === 0) && (
+              <div className="text-white/60">Henüz mesaj yok.</div>
+            )}
+          </div>
+          <form action={postMessage} className="space-y-2">
+            <textarea name="message" placeholder="Mesaj yazın..." className="form-input min-h-[80px]" />
+            <button type="submit" className="btn-primary">Gönder</button>
+          </form>
+        </div>
       </div>
     </div>
   );
