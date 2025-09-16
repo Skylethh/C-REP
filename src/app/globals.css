@@ -88,7 +88,7 @@
   }
   
   .btn-primary {
-    @apply bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500 text-white shadow-glow-sm transition-all duration-300 transform hover:scale-105;
+    @apply bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500 text-white shadow-glow-sm transition-all duration-300 transform hover:scale-105 px-4 py-2.5 rounded-lg font-medium;
   }
   
   .btn-secondary {

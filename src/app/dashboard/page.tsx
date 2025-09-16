@@ -132,7 +132,10 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
             <option value="24">24 adet</option>
           </select>
           
-          <button className="px-4 rounded-md bg-gradient-to-r from-leaf-600/90 to-ocean-600/90 text-white hover:from-leaf-500 hover:to-ocean-500 transition-all duration-200 shadow-md hover:shadow-lg text-sm font-medium">
+          <button className="btn-primary text-sm font-medium flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="20,6 9,17 4,12"></polyline>
+            </svg>
             <span>Uygula</span>
           </button>
         </div>
@@ -214,7 +217,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
               </div>
               <h3 className="font-medium text-lg mb-3 highlight-text">{dict.misc.noData}</h3>
               <p className="text-white/70 text-sm mb-5">{dict.cta.createProject}</p>
-              <Button className="bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500 text-white shadow-lg hover:shadow-xl transition-all duration-300 px-5 py-2.5">
+              <Button className="btn-primary">
                 <span className="font-medium">{dict.cta.createProject}</span>
                 <Plus size={18} className="ml-2" />
               </Button>

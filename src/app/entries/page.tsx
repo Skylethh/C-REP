@@ -77,7 +77,12 @@ export default async function EntriesListPage({ searchParams }: { searchParams?:
           <input name="project" defaultValue={project} className="form-input py-1.5" />
         </div>
         <div className="flex items-center gap-2">
-          <button className="px-3 py-1.5 rounded-md bg-gradient-to-r from-leaf-600 to-ocean-600 text-white">Uygula</button>
+          <button className="btn-primary flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="20,6 9,17 4,12"></polyline>
+            </svg>
+            Uygula
+          </button>
           <Link href="/entries" className="px-3 py-1.5 rounded-md bg-white/10 border border-white/10">Temizle</Link>
         </div>
       </form>

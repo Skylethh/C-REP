@@ -69,7 +69,12 @@ export default async function AuditReportPage({ searchParams }: { searchParams?:
             <option value="200">200</option>
           </select>
         </div>
-        <button className="px-3 py-1.5 rounded-md bg-gradient-to-r from-leaf-600 to-ocean-600 text-white">Uygula</button>
+        <button className="btn-primary flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="20,6 9,17 4,12"></polyline>
+          </svg>
+          Uygula
+        </button>
       </form>
 
       <div className="rounded-md border border-white/10 overflow-x-auto">
