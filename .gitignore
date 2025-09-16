@@ -1,1 +1,72 @@
-node_modules
+# Node / Next.js
+node_modules/
+.next/
+.next/cache/
+dist/
+build/
+out/
+.vercel/
+.turbo/
+.cache/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.lcov
+
+# Env files (keep only examples in git)
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editors / IDE
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS junk
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing (Playwright/Jest/NYC)
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+
+# Supabase local dev artifacts
+supabase/.env
+supabase/.temp/
+supabase/.branches/
+supabase/docker/
+supabase/volumes/
+# keep config and migrations if present
+!supabase/config.toml
+!supabase/migrations/**
+
+# Package managers
+.pnpm-store/
+# (do NOT ignore lock files: package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb)
+
+# Misc caches
+.eslintcache
