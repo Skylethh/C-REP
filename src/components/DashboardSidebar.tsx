@@ -114,6 +114,12 @@ export default function DashboardSidebar({
             active={pathname === '/dashboard'}
           />
           <NavItem 
+            href={"/projects" as any}
+            icon={<Folder size={18} />} 
+            label="Tüm Projeler" 
+            active={pathname === '/projects'}
+          />
+          <NavItem 
             href="/reports" 
             icon={<BarChart2 size={18} />} 
             label="Raporlar" 

@@ -27,7 +27,7 @@ export default async function Page() {
       
       {/* Hero Section */}
       <section className="pt-2 pb-16 md:pt-4 md:pb-24 overflow-hidden">
-        <div className="container mx-auto px-6 md:px-12 lg:px-16 max-w-7xl">
+  <div className="app-container">
           <div className="flex flex-col lg:flex-row items-center gap-8">
             {/* Hero Content */}
             <div className="lg:w-1/2 space-y-8">
@@ -128,7 +128,7 @@ export default async function Page() {
       
       {/* Features Section */}
       <section id="features" className="py-16 md:py-20">
-        <div className="container mx-auto px-6 md:px-12 lg:px-16 max-w-7xl">
+  <div className="app-container">
           <div className="text-center mb-12">
             <h2 className="section-title">
               Profesyonel <span className="highlight-text">Özellikler</span>
@@ -214,7 +214,7 @@ export default async function Page() {
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-leaf-500/10 rounded-full blur-3xl"></div>
         </div>
         
-        <div className="container mx-auto px-6 md:px-12 lg:px-16 max-w-7xl relative z-10">
+  <div className="app-container relative z-10">
           <div className="text-center mb-16">
             <h2 className="section-title">
               Nasıl <span className="highlight-text">Çalışır?</span>
@@ -289,7 +289,7 @@ export default async function Page() {
       
       {/* CTA Section */}
       <section className="py-16">
-        <div className="container mx-auto px-6 md:px-12 lg:px-16 max-w-7xl">
+  <div className="app-container">
           <div className="glass p-8 md:p-12 max-w-4xl mx-auto">
             <div className="flex flex-col md:flex-row items-center gap-8">
               <div className="md:w-2/3">
@@ -317,7 +317,7 @@ export default async function Page() {
       
       {/* Footer */}
       <footer id="footer" className="py-12 border-t border-white/10">
-        <div className="container mx-auto px-6 md:px-12 lg:px-16 max-w-7xl">
+  <div className="app-container">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-12">
             {/* Company */}
             <div>

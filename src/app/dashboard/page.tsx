@@ -13,7 +13,9 @@ import {
   Folder, 
   Plus, 
   Settings, 
-  TrendingUp 
+  TrendingUp,
+  Activity,
+  Factory 
 } from 'lucide-react';
 import { Button } from '@/components/button';
 
@@ -103,43 +105,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
         </div>
       </div>
 
-      {/* Projects toolbar */}
-      <form className="dashboard-filters">
-        <div className="flex-1 flex items-center gap-2 bg-white/5 rounded-md px-3 py-2 border border-white/10">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/50">
-            <circle cx="11" cy="11" r="8"></circle>
-            <path d="m21 21-4.3-4.3"></path>
-          </svg>
-          <input 
-            name="q" 
-            defaultValue={q} 
-            placeholder="Proje adı veya açıklama ara..." 
-            className="bg-transparent border-none outline-none w-full text-sm focus:outline-none focus:ring-0" 
-          />
-        </div>
-        
-        <div className="flex gap-2">
-          <select name="sort" defaultValue={sort} className="form-input text-sm py-2">
-            <option value="created_desc">En yeni</option>
-            <option value="created_asc">En eski</option>
-            <option value="name_asc">Ad (A→Z)</option>
-            <option value="name_desc">Ad (Z→A)</option>
-          </select>
-          
-          <select name="limit" defaultValue={String(limit)} className="form-input text-sm py-2 w-24">
-            <option value="6">6 adet</option>
-            <option value="12">12 adet</option>
-            <option value="24">24 adet</option>
-          </select>
-          
-          <button className="btn-primary text-sm font-medium flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="20,6 9,17 4,12"></polyline>
-            </svg>
-            <span>Uygula</span>
-          </button>
-        </div>
-      </form>
+      {/* Projects toolbar moved to /projects */}
       
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -155,18 +121,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
         <StatsCard 
           title={dict.stats.last30Emissions}
           value={`${totalCO2e.toFixed(2)} kg`}
-          icon={(
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 2v2"></path>
-              <path d="M16 2v2"></path>
-              <circle cx="12" cy="11" r="7"></circle>
-              <path d="M8 16.9c1.1.8 2.5 1.1 3.8 1.1s2.7-.3 3.8-1.1"></path>
-              <path d="M12 16v2"></path>
-              <path d="M12 13v2"></path>
-              <path d="M12 18v4"></path>
-              <path d="M8 22h8"></path>
-            </svg>
-          )}
+          icon={<Factory size={20} />}
           trend="up"
           trendText="Son 30 gün"
         />
@@ -186,13 +141,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
         <StatsCard 
           title="Kayıt Başına Ortalama"
           value={`${(totalCO2e / Math.max(1, last30Entries?.length || 0)).toFixed(2)} kg`}
-          icon={(
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 3v18"></path>
-              <path d="M3 19h18"></path>
-              <path d="M7 15l4-4 3 3 5-5"></path>
-            </svg>
-          )}
+          icon={<Activity size={20} />}
         />
       </div>
       
@@ -206,7 +155,12 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
           footer={
             <div className="flex justify-between items-center">
               <span className="text-xs text-white/60">{projectCount} proje</span>
-              <CreateProjectDialog />
+              <div className="flex items-center gap-2">
+                <Link href={"/projects" as any} className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-md text-sm text-white/80 hover:text-white transition-colors">
+                  Tümünü Gör
+                </Link>
+                <CreateProjectDialog />
+              </div>
             </div>
           }
         >
@@ -224,7 +178,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
             </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-5">
-              {data.map((p) => (
+              {data.slice(0, 4).map((p) => (
                 <div key={p.id} className="data-card hover:border-leaf-400/30 hover:bg-white/10 transition-all duration-300 h-full flex flex-col group">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="bg-gradient-to-r from-leaf-500/20 to-ocean-500/20 p-2 rounded-md">

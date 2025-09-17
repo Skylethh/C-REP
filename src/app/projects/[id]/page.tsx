@@ -3,6 +3,7 @@ import { EvidenceUploader } from '@/components/EvidenceUploader';
 import Link from 'next/link';
 import { EvidenceList } from '@/components/EvidenceList';
 import { getMessages } from '@/i18n';
+import { BarChart2, Layers, ChevronLeft, Factory, Cloud, Zap, Truck, Package, HelpCircle } from 'lucide-react';
 
 export default async function ProjectDetail({ params, searchParams }: { params: { id: string }, searchParams: Record<string, string | string[] | undefined> }) {
   const { dict } = await getMessages();
@@ -53,22 +54,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
     totalsQuery
   ]);
 
-      if (!project) return <div>{dict.misc?.notFound ?? 'Proje bulunamadı'}</div>;
-
-      {/* Başarı mesajı */}
-      {showSuccess && (
-        <div className="mb-6 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-green-200 flex items-center gap-3 animate-fadeIn">
-          <div className="p-1.5 rounded-full bg-green-500/20">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-              <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-          </div>
-          <div>
-            <p className="font-medium">{successMessage}</p>
-          </div>
-        </div>
-      )}
+  if (!project) return <div>{dict.misc?.notFound ?? 'Proje bulunamadı'}</div>;
 
   const totalByType = (entries ?? []).reduce<Record<string, number>>((acc, e) => {
     acc[e.type] = (acc[e.type] || 0) + (Number(e.co2e_value) || 0);
@@ -82,6 +68,19 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
 
   return (
     <div className="space-y-8">
+      {showSuccess && (
+        <div className="mb-6 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-green-200 flex items-center gap-3 animate-fadeIn">
+          <div className="p-1.5 rounded-full bg-green-500/20">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+          </div>
+          <div>
+            <p className="font-medium">{successMessage}</p>
+          </div>
+        </div>
+      )}
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-900/80 to-ocean-900/80 border border-white/10 shadow-lg">
         <div className="absolute inset-0 bg-gradient-to-br from-leaf-500/10 to-ocean-500/10 backdrop-blur-sm"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-30"></div>
@@ -89,15 +88,13 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
         <div className="relative p-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
-              <div className="flex items-center gap-3 mb-3">
+              <div className="flex items-center gap-2 mb-3">
                 <Link
-                  href="/dashboard"
-                  className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm"
+                  href={"/projects" as any}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-white/80 hover:text-white border border-white/10 hover:border-white/20 hover:bg-white/10 transition-colors"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m15 18-6-6 6-6"/>
-                  </svg>
-                  <span>Dashboard'a Dön</span>
+                  <ChevronLeft size={16} />
+                  <span>Projeler</span>
                 </Link>
               </div>
               <h1 className="text-3xl font-bold mb-2 highlight-text">{project.name}</h1>
@@ -165,12 +162,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
               <div className="text-xs text-white/60 mt-1">CO₂ eşdeğeri</div>
             </div>
             <div className="p-3 rounded-full bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-leaf-400">
-                <path d="M2 22h20"></path>
-                <path d="M20 15H4c-1 0-2-.5-2-2V4c0-1.5 1-2 2-2h16c1 0 2 .5 2 2v9c0 1.5-1 2-2 2z"></path>
-                <path d="M14 4v18"></path>
-                <path d="M6 15v7"></path>
-              </svg>
+              <Cloud size={24} className="text-leaf-400" />
             </div>
           </div>
           
@@ -195,15 +187,9 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-base">{dict.cards?.emissionByType ?? 'Tür Bazında Emisyon'}</h3>
             <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-leaf-400">
-                <path d="M3 3v18h18"></path>
-                <path d="M7 17v-8"></path>
-                <path d="M11 17v-5"></path>
-                <path d="M15 17v-3"></path>
-                <path d="M19 17v-1"></path>
-              </svg>
-        </div>
-      </div>
+              <BarChart2 size={16} className="text-leaf-400" />
+            </div>
+          </div>
 
           <ul className="space-y-3">
             {Object.entries(totalByType).length === 0 ? (
@@ -235,23 +221,18 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 );
               })
             )}
-            </ul>
-          </div>
+          </ul>
+        </div>
         
         {/* Scope Bazında CO2e Kartı */}
         <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-5 shadow-md hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-medium text-base">{dict.cards?.emissionByScope ?? 'Scope Bazında Emisyon'}</h3>
             <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-leaf-400">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-                <line x1="9" y1="9" x2="9.01" y2="9"></line>
-                <line x1="15" y1="9" x2="15.01" y2="9"></line>
-              </svg>
+              <Layers size={16} className="text-leaf-400" />
             </div>
           </div>
-          
+
           <ul className="space-y-3">
             {Object.entries(totalByScope).length === 0 ? (
               <li className="text-sm text-white/50 italic">Henüz veri yok</li>
@@ -288,8 +269,8 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 );
               })
             )}
-            </ul>
-          </div>
+          </ul>
+        </div>
       </section>
         {/* Kayıtlar Başlığı ve Filtreleme */}
         <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-6 shadow-md">
@@ -452,45 +433,17 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 
                 // Tür için renk ve ikon belirleme
                 let typeColor = 'bg-leaf-500';
-                let typeIcon = (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18.36 6.64A9 9 0 0 1 20.77 15"></path>
-                    <path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"></path>
-                    <path d="M12 2v4"></path>
-                    <path d="M2 12h4"></path>
-                    <path d="m4.93 4.93 2.83 2.83"></path>
-                    <path d="m16.24 16.24 2.83 2.83"></path>
-                  </svg>
-                );
+                let typeIcon = <Zap size={16} />;
                 
                 if (e.type === 'transport') {
                   typeColor = 'bg-blue-500';
-                  typeIcon = (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="1" y="3" width="15" height="13"></rect>
-                      <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
-                      <circle cx="5.5" cy="18.5" r="2.5"></circle>
-                      <circle cx="18.5" cy="18.5" r="2.5"></circle>
-                    </svg>
-                  );
+                  typeIcon = <Truck size={16} />;
                 } else if (e.type === 'materials') {
                   typeColor = 'bg-amber-500';
-                  typeIcon = (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                      <polyline points="3.29 7 12 12 20.71 7"></polyline>
-                      <line x1="12" y1="22" x2="12" y2="12"></line>
-                    </svg>
-                  );
+                  typeIcon = <Package size={16} />;
                 } else if (e.type === 'other') {
                   typeColor = 'bg-purple-500';
-                  typeIcon = (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <path d="M12 16v-4"></path>
-                      <path d="M12 8h.01"></path>
-                    </svg>
-                  );
+                  typeIcon = <HelpCircle size={16} />;
                 }
                 
                 // Scope için renk ve etiket belirleme

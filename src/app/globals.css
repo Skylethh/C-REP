@@ -37,6 +37,10 @@
 }
 
 @layer components {
+  .app-container {
+    @apply container mx-auto max-w-7xl px-4;
+  }
+
   .glass {
     @apply backdrop-blur-md bg-white/5 border border-white/10 rounded-xl shadow-md;
   }

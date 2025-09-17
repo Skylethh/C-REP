@@ -15,11 +15,11 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     .order('created_at', { ascending: false });
   
   return (
-    <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
+  <div className="flex min-h-[calc(100vh-4rem)]">
       <div className="w-64 min-w-64 flex-shrink-0">
         <DashboardSidebar projects={projects || []} />
       </div>
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-6">
+      <div className="flex-1 overflow-x-hidden p-6">
         {children}
       </div>
     </div>

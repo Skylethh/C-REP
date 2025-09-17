@@ -12,7 +12,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
   if (!user) {
     return (
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-gradient-to-r from-emerald-950/80 to-ocean-950/80 border-b border-white/10 shadow-md">
-        <div className="container mx-auto px-6 md:px-12 lg:px-16 h-16 flex items-center justify-between max-w-7xl">
+  <div className="app-container h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <div className="bg-gradient-to-br from-leaf-400 to-ocean-400 p-1.5 rounded-lg shadow-glow-sm group-hover:shadow-glow-md transition-all">
               <Leaf className="text-white" size={20} />
@@ -69,7 +69,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
         
         {/* Mobile menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden glass mx-6 my-2 p-4 animate-in slide-in-from-top-5 duration-200 max-w-lg">
+          <div className="md:hidden glass mx-4 my-2 p-4 animate-in slide-in-from-top-5 duration-200 max-w-lg">
             <div className="flex flex-col space-y-4">
               <Link href="#features" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
                 Özellikler
@@ -98,7 +98,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
   // Dashboard header (user logged in) - This is separate from landing page
   return (
     <header className="sticky top-0 z-50 backdrop-blur-xl bg-gradient-to-r from-emerald-950/80 to-ocean-950/80 border-b border-white/10 shadow-md">
-      <div className="container mx-auto px-6 md:px-12 lg:px-16 h-16 flex items-center justify-between max-w-7xl">
+  <div className="app-container h-16 flex items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-2 group">
           <div className="bg-gradient-to-br from-leaf-400 to-ocean-400 p-1.5 rounded-lg shadow-glow-sm group-hover:shadow-glow-md transition-all">
             <Leaf className="text-white" size={20} />
@@ -110,6 +110,9 @@ export function Header({ user }: { user?: { email?: string } | null }) {
           <div className="hidden md:flex items-center gap-4">
             <Link href="/dashboard" className="text-sm text-white/80 hover:text-white transition-colors">
               Dashboard
+            </Link>
+            <Link href={"/projects" as any} className="text-sm text-white/80 hover:text-white transition-colors">
+              Projeler
             </Link>
             <Link href="/reports" className="text-sm text-white/80 hover:text-white transition-colors">
               Raporlar
@@ -151,7 +154,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
               </div>
               
               <div className="py-2">
-                <Link href="/profile" className="flex items-center px-4 py-2.5 text-sm text-white/90 hover:text-white hover:bg-white/10 transition-colors">
+                <Link href={"/profile" as any} className="flex items-center px-4 py-2.5 text-sm text-white/90 hover:text-white hover:bg-white/10 transition-colors">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 text-leaf-400">
                     <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
                     <circle cx="12" cy="7" r="4"></circle>
@@ -195,10 +198,13 @@ export function Header({ user }: { user?: { email?: string } | null }) {
       
       {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden glass mx-6 my-2 p-4 animate-in slide-in-from-top-5 duration-200 max-w-lg">
+  <div className="md:hidden glass mx-4 my-2 p-4 animate-in slide-in-from-top-5 duration-200 max-w-lg">
           <div className="flex flex-col space-y-4">
             <Link href="/dashboard" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
               Dashboard
+            </Link>
+            <Link href={"/projects" as any} className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
+              Projeler
             </Link>
             <Link href="/reports" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
               Raporlar
@@ -206,7 +212,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
             <Link href="/opportunities" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
               Fırsatlar
             </Link>
-            <Link href="/profile" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
+            <Link href={"/profile" as any} className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
               Profil Ayarları
             </Link>
             <button 
