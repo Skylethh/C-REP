@@ -26,7 +26,7 @@ export const messages = {
       recentActivities: 'Son Aktiviteler',
       emissionAnalysis: 'Emisyon Analizi',
       emissionByType: 'Tür bazında CO2e',
-      emissionByScope: 'Scope bazında CO2e',
+  emissionByScope: 'Kapsam bazında CO2e',
       entries: 'Kayıtlar',
       export: 'CSV Dışa Aktar'
     },

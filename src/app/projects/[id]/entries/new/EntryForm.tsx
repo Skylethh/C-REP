@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from 'react';
+import { Calculator } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/client';
 import { Button } from '@/components/button';
 import ActivitySelect from './ActivitySelect';
@@ -23,6 +24,47 @@ export default function EntryForm({ projectId, action }: Props) {
   const [calcError, setCalcError] = useState<string | null>(null);
   const [calculating, setCalculating] = useState<boolean>(false);
   const cacheRef = useMemo(() => new Map<string, number>(), []);
+
+  // Turkish display mapping for common categories/keys
+  const TR_MAP: Record<string, string> = {
+    steel_rebar: 'Çelik Donatı (Rebar)',
+    steel_structural: 'Yapısal Çelik',
+    aluminium: 'Alüminyum',
+    aluminum: 'Alüminyum',
+    copper: 'Bakır',
+    brass: 'Pirinç',
+    cement: 'Çimento',
+    cement_clinker: 'Çimento Klinker',
+    aggregate: 'Agrega',
+    brick: 'Tuğla',
+    brick_clay: 'Kil Tuğla',
+    ceramic_tile: 'Seramik Karo',
+    glass: 'Cam',
+    gypsum_board: 'Alçıpan',
+    paint: 'Boya',
+    wood_timber: 'Kereste',
+    plywood: 'Kontrplak',
+    mdf: 'MDF',
+    asphalt: 'Asfalt',
+    water_supply: 'Şebeke Suyu',
+    waste_mixed: 'Karma Atık Bertarafı',
+    electricity_grid: 'Elektrik (şebeke)',
+    diesel_fuel: 'Dizel Yakıt',
+    passenger_car: 'Binek Araç',
+    natural_gas: 'Doğal Gaz',
+    gasoline: 'Benzin',
+    concrete: 'Beton',
+    concrete_c20: 'Beton C20',
+    concrete_c25: 'Beton C25',
+    concrete_c30: 'Beton C30',
+  };
+  const categoryDisplay = useMemo(() => {
+    const key = (category || '').toLowerCase();
+    if (!key) return '';
+    if (TR_MAP[key]) return TR_MAP[key];
+    // Fallback: prettify slug
+    return key.replace(/_/g, ' ').replace(/(^|\s)([a-zçğıöşü])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+  }, [category]);
 
   // Initialize date to today for better defaults
   useEffect(() => {
@@ -200,7 +242,7 @@ export default function EntryForm({ projectId, action }: Props) {
                 
                 <div className="space-y-2">
                   <label className="form-label flex items-center gap-2">
-                    <span>Scope</span>
+                    <span>Kapsam</span>
                     {activity && <span className="text-xs text-white/50">(Aktiviteden alındı)</span>}
                   </label>
                   <div className="relative">
@@ -235,14 +277,26 @@ export default function EntryForm({ projectId, action }: Props) {
                         <path d="M20 12V8h-4V4h-4v4H8v4H4v4h4v4h4v-4h4v-4h4z"></path>
                       </svg>
                     </div>
-                    <input 
-                      name="category" 
-                      value={category} 
-                      onChange={(e) => setCategory(e.target.value)} 
-                      placeholder="örn. elektrik" 
-                      disabled={!!activity} 
-                      className="form-input pl-10 disabled:bg-white/5 disabled:border-white/5 disabled:text-white/70 w-full" 
-                    />
+                    {/* Show Turkish label, keep slug in hidden field for submission */}
+                    {activity ? (
+                      <>
+                        <input 
+                          value={categoryDisplay} 
+                          readOnly 
+                          className="form-input pl-10 disabled:bg-white/5 disabled:border-white/5 disabled:text-white/70 w-full" 
+                          disabled
+                        />
+                        <input type="hidden" name="category" value={category} />
+                      </>
+                    ) : (
+                      <input 
+                        name="category" 
+                        value={category} 
+                        onChange={(e) => setCategory(e.target.value)} 
+                        placeholder="örn. elektrik" 
+                        className="form-input pl-10 w-full" 
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -271,10 +325,7 @@ export default function EntryForm({ projectId, action }: Props) {
                 <div className="flex items-center gap-3">
                   <div className="relative flex-grow">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-white/50">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="1" x2="12" y2="23"></line>
-                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                      </svg>
+                      <Calculator size={16} />
                     </div>
                     <input 
                       name="amount" 

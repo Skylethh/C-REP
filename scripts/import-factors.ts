@@ -81,9 +81,43 @@ async function main() {
     const { data: act } = await supabase.from('activities').select('id').eq('key', r.category).maybeSingle();
     let activityId = act?.id;
     if (!activityId) {
+      // Basic TR map to assign a Turkish name for auto-created activities
+      const TR_MAP: Record<string, string> = {
+        steel_rebar: 'Çelik Donatı (Rebar)',
+        steel_structural: 'Yapısal Çelik',
+        aluminium: 'Alüminyum',
+        aluminum: 'Alüminyum',
+        copper: 'Bakır',
+        brass: 'Pirinç',
+        cement: 'Çimento',
+        cement_clinker: 'Çimento Klinker',
+        aggregate: 'Agrega',
+        brick: 'Tuğla',
+        brick_clay: 'Kil Tuğla',
+        ceramic_tile: 'Seramik Karo',
+        glass: 'Cam',
+        gypsum_board: 'Alçıpan',
+        paint: 'Boya',
+        wood_timber: 'Kereste',
+        plywood: 'Kontrplak',
+        mdf: 'MDF',
+        asphalt: 'Asfalt',
+        water_supply: 'Şebeke Suyu',
+        waste_mixed: 'Karma Atık Bertarafı',
+        electricity_grid: 'Elektrik (şebeke)',
+        diesel_fuel: 'Dizel Yakıt',
+        passenger_car: 'Binek Araç',
+        natural_gas: 'Doğal Gaz',
+        gasoline: 'Benzin',
+        concrete: 'Beton',
+        concrete_c20: 'Beton C20',
+        concrete_c25: 'Beton C25',
+        concrete_c30: 'Beton C30',
+      };
+      const inferTr = (key: string) => TR_MAP[key] || key.replace(/_/g, ' ');
       const { data: created, error: aErr } = await supabase.from('activities').insert({
         key: r.category,
-        name: r.category.replace(/_/g, ' '),
+        name: inferTr(r.category),
         type: 'materials',
         scope: r.scope || 'scope3',
         category: r.category,

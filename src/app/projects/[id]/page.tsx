@@ -227,7 +227,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
         {/* Scope Bazında CO2e Kartı */}
         <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-5 shadow-md hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-base">{dict.cards?.emissionByScope ?? 'Scope Bazında Emisyon'}</h3>
+            <h3 className="font-medium text-base">{dict.cards?.emissionByScope ?? 'Kapsam Bazında Emisyon'}</h3>
             <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
               <Layers size={16} className="text-leaf-400" />
             </div>
@@ -247,9 +247,9 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 if (k === 'unknown') colorClass = 'bg-gray-500';
                 
                 let scopeLabel = k;
-                if (k === 'scope1') scopeLabel = 'Scope 1';
-                if (k === 'scope2') scopeLabel = 'Scope 2';
-                if (k === 'scope3') scopeLabel = 'Scope 3';
+                if (k === 'scope1') scopeLabel = 'Kapsam 1';
+                if (k === 'scope2') scopeLabel = 'Kapsam 2';
+                if (k === 'scope3') scopeLabel = 'Kapsam 3';
                 if (k === 'unknown') scopeLabel = 'Bilinmeyen';
                 
                 return (
@@ -357,12 +357,12 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
           </div>
               
               <div className="space-y-1">
-                <label className="form-label">Scope</label>
+                <label className="form-label">Kapsam</label>
                 <select name="scope" defaultValue={filterScope} className="form-input">
                   <option value="">Tüm Scope'lar</option>
-              <option value="scope1">Scope 1</option>
-              <option value="scope2">Scope 2</option>
-              <option value="scope3">Scope 3</option>
+              <option value="scope1">Kapsam 1</option>
+              <option value="scope2">Kapsam 2</option>
+              <option value="scope3">Kapsam 3</option>
             </select>
           </div>
               
