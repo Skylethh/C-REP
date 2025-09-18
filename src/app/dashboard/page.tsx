@@ -18,6 +18,7 @@ import {
   Factory 
 } from 'lucide-react';
 import { Button } from '@/components/button';
+import { formatCo2eTons } from '@/lib/units';
 
 export default async function DashboardPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { dict } = await getMessages();
@@ -60,9 +61,9 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
 
   const { data: recentEntries } = await supabase
     .from('entries')
-    .select('id, type, amount, unit, date, co2e_value, co2e_unit, project_id, projects(name)')
+    .select('id, type, amount, unit, date, co2e_value, co2e_unit, project_id, projects(name), activities(name, key)')
     .order('date', { ascending: false })
-    .limit(10);
+    .limit(4);
 
   if (error) {
     return <div>Projeler yüklenemedi: {error.message}</div>;
@@ -120,7 +121,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
         />
         <StatsCard 
           title={dict.stats.last30Emissions}
-          value={`${totalCO2e.toFixed(2)} kg`}
+          value={`${formatCo2eTons(totalCO2e, 3).value} ${formatCo2eTons(totalCO2e, 3).unit}`}
           icon={<Factory size={20} />}
           trend="up"
           trendText="Son 30 gün"
@@ -140,7 +141,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
         />
         <StatsCard 
           title="Kayıt Başına Ortalama"
-          value={`${(totalCO2e / Math.max(1, last30Entries?.length || 0)).toFixed(2)} kg`}
+          value={`${(() => { const avg = totalCO2e / Math.max(1, last30Entries?.length || 0); const f = formatCo2eTons(avg, 3); return `${f.value} ${f.unit}`; })()}`}
           icon={<Activity size={20} />}
         />
       </div>
@@ -261,7 +262,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
           icon={<Calendar size={18} />}
           footer={
             <div className="flex justify-between items-center">
-              <span className="text-xs text-white/60">Son 10 kayıt</span>
+              <span className="text-xs text-white/60">Son 4 kayıt</span>
               <Button size="sm" variant="ghost" className="text-xs">
                 <Link href={"/entries" as any} className="flex items-center gap-1">
                   {dict.cta.viewAll}
@@ -281,20 +282,20 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
               <p className="text-white/70 text-sm font-medium highlight-text">{dict.misc.noData}</p>
             </div>
           ) : (
-            <div className="space-y-3 -mx-5">
-              {recentEntries.map((e) => (
+            <div className="-mx-5 h-full flex flex-col justify-between">
+              {recentEntries.slice(0, 4).map((e) => (
                 <div key={e.id} className="px-5 py-3 border-b border-white/5 last:border-0 hover:bg-white/5">
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="font-medium text-sm">{(e.projects as any)?.name}</div>
                       <div className="text-white/70 text-xs flex items-center gap-2">
-                        <span>{e.type}</span>
+                        <span>{((e as any).activities?.name) || e.type}</span>
                         <span>•</span>
                         <span>{e.amount} {e.unit}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-leaf-400 font-medium">{e.co2e_value ?? '-'} {e.co2e_unit ?? 'kg'}</div>
+                      <div className="text-leaf-400 font-medium">{(() => { const v = Number(e.co2e_value ?? 0); if (!isFinite(v) || v<=0) return '-'; const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}</div>
                       <div className="text-white/60 text-xs">{new Date(e.date).toLocaleDateString()}</div>
                     </div>
                   </div>

@@ -1,13 +1,12 @@
 import { createClient } from '@/lib/server';
+import Link from 'next/link';
 import { addMember, removeMember } from './server';
 import InviteForm from './InviteForm';
 
 export default async function MembersPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
-  const { data: members } = await supabase
-    .from('project_members')
-    .select('user_id, role')
-    .eq('project_id', params.id);
+  // Use RPC to fetch members with emails (more readable UI)
+  const { data: members } = await supabase.rpc('get_project_members', { p_project: params.id });
 
   return (
     <div className="min-h-screen">
@@ -17,16 +16,27 @@ export default async function MembersPage({ params }: { params: { id: string } }
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-30"></div>
         
         <div className="relative p-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-leaf-400">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-leaf-400">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </div>
+              <h1 className="text-2xl font-bold highlight-text">Proje Üyeleri</h1>
             </div>
-            <h1 className="text-2xl font-bold highlight-text">Proje Üyeleri</h1>
+            <Link 
+              href={`/projects/${params.id}`}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-white/80 hover:text-white border border-white/10 hover:border-white/20 hover:bg-white/10 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m15 18-6-6 6-6"/>
+              </svg>
+              <span>Geri Dön</span>
+            </Link>
           </div>
           
           <p className="text-white/70 ml-11 mt-2">
@@ -125,7 +135,7 @@ export default async function MembersPage({ params }: { params: { id: string } }
 
         {members && members.length > 0 ? (
           <div className="space-y-3">
-            {members.map((m) => {
+            {members.map((m: any) => {
               const roleColor = m.role === 'owner' 
                 ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
                 : m.role === 'editor'
@@ -138,6 +148,9 @@ export default async function MembersPage({ params }: { params: { id: string } }
                 ? 'Editör'
                 : 'Görüntüleyici';
 
+              const email = (m.email || '') as string;
+              const displayName = email ? email.split('@')[0] : (m.user_id as string);
+
               return (
                 <div key={m.user_id} className="flex items-center justify-between rounded-lg bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition-all duration-200">
                   <div className="flex items-center gap-3">
@@ -148,7 +161,7 @@ export default async function MembersPage({ params }: { params: { id: string } }
                       </svg>
                     </div>
                     <div>
-                      <div className="font-medium text-white">{m.user_id}</div>
+                      <div className="font-medium text-white">{displayName}</div>
                       <span className={`text-xs px-2 py-1 rounded-full border font-medium ${roleColor}`}>
                         {roleText}
                       </span>

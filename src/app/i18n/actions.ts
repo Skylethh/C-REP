@@ -11,9 +11,9 @@ export async function switchLocale(formData: FormData) {
   const h = await headers();
   const referer = h.get('referer');
   try {
-    if (referer) redirect(new URL(referer).pathname);
+  if (referer) redirect((new URL(referer).pathname as any));
   } catch {}
-  redirect('/');
+  redirect(('/' as any));
 }
 
 

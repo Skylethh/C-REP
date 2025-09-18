@@ -6,8 +6,9 @@ import { updateProject, deleteProject } from '@/app/dashboard/actions';
 export function ProjectRowActions({ id, name, description }: { id: string; name: string; description?: string }) {
   const [editing, setEditing] = useState(false);
 
-  const [updateState, updateAction] = useActionState(updateProject as any, { ok: false } as any);
-  const [deleteState, deleteAction] = useActionState(deleteProject as any, { ok: false } as any);
+  type ActionResult = { ok?: boolean; error?: string };
+  const [updateState, updateAction] = useActionState<ActionResult, FormData>(updateProject as any, { ok: false });
+  const [deleteState, deleteAction] = useActionState<ActionResult, FormData>(deleteProject as any, { ok: false });
 
   useEffect(() => {
     if (updateState?.ok) setEditing(false);
@@ -29,7 +30,7 @@ export function ProjectRowActions({ id, name, description }: { id: string; name:
               if (!confirm('Bu projeyi silmek istediğinize emin misiniz?')) return;
               const fd = new FormData();
               fd.append('id', id);
-              const res = await deleteAction(fd);
+              const res: ActionResult = await (deleteAction as any)(fd);
               if (typeof window !== 'undefined') {
                 if (res?.ok) {
                   window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Proje silindi', variant: 'success' } }));
@@ -47,7 +48,7 @@ export function ProjectRowActions({ id, name, description }: { id: string; name:
         </>
       ) : (
         <form action={async (fd) => {
-          const res = await updateAction(fd);
+          const res: ActionResult = await (updateAction as any)(fd);
           if (typeof window !== 'undefined') {
             if (res?.ok) {
               window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Proje güncellendi', variant: 'success' } }));

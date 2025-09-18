@@ -1,3 +1,4 @@
+"use client";
 import { cva, type VariantProps } from 'class-variance-authority';
 import { twMerge } from 'tailwind-merge';
 import { clsx } from 'clsx';

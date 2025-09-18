@@ -2,17 +2,18 @@ import { createClient } from '@/lib/server';
 
 export const dynamic = 'force-static';
 
-export default async function PrintPage({ params }: { params: { id: string } }) {
+export default async function PrintPage({ params }: { params: Promise<{ id: string }> }) {
+  const p = await params;
   const supabase = await createClient();
   const { data: project } = await supabase
     .from('projects')
     .select('id, name, description, organization_id, organizations(logo_url, name)')
-    .eq('id', params.id)
+    .eq('id', p.id)
     .maybeSingle();
   const { data: entries } = await supabase
     .from('entries')
     .select('date, type, amount, unit, co2e_value, co2e_unit')
-    .eq('project_id', params.id)
+    .eq('project_id', p.id)
     .order('date', { ascending: true });
 
   const org: any = (project as any)?.organizations || null;
@@ -93,7 +94,7 @@ export default async function PrintPage({ params }: { params: { id: string } }) 
         {org?.name && <p className="mt-1">{org.name}</p>}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @media print {
           .no-print { display: none !important; }
           body { background: white !important; }

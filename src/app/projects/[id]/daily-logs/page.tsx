@@ -3,9 +3,7 @@ import Link from 'next/link';
 import type { Route } from 'next';
 import { redirect } from 'next/navigation';
 
-type Props = { params: { id: string }, searchParams?: { [key: string]: string | string[] | undefined } };
-
-export default async function DailyLogsPage({ params, searchParams }: Props) {
+export default async function DailyLogsPage({ params, searchParams }: any) {
   const { id } = params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -20,8 +18,9 @@ export default async function DailyLogsPage({ params, searchParams }: Props) {
   const month = base.getMonth();
   const monthStart = new Date(year, month, 1);
   const monthEnd = new Date(year, month + 1, 0);
-  const startISO = monthStart.toISOString().slice(0, 10);
-  const endISO = monthEnd.toISOString().slice(0, 10);
+  // Build YYYY-MM-DD using local date parts to avoid timezone shifting
+  const startISO = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}-${String(monthStart.getDate()).padStart(2, '0')}`;
+  const endISO = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth() + 1).padStart(2, '0')}-${String(monthEnd.getDate()).padStart(2, '0')}`;
 
   // Fetch logs for current month for calendar markers and recent list for list view
   const [monthLogsRes, listLogsRes] = await Promise.all([
@@ -33,9 +32,9 @@ export default async function DailyLogsPage({ params, searchParams }: Props) {
       .lte('date', endISO),
     supabase
       .from('daily_logs')
-      .select('id,date,weather,notes')
+      .select('id,date,weather,notes,created_at')
       .eq('project_id', id)
-      .order('date', { ascending: false })
+      .order('created_at', { ascending: false, nullsFirst: false })
       .limit(60)
   ]);
 
@@ -55,7 +54,7 @@ export default async function DailyLogsPage({ params, searchParams }: Props) {
   const nextMonth = new Date(year, month + 1, 1);
   const prevParam = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth()+1).padStart(2,'0')}`;
   const nextParam = `${nextMonth.getFullYear()}-${String(nextMonth.getMonth()+1).padStart(2,'0')}`;
-  const todayISO = today.toISOString().slice(0,10);
+  const todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   return (
     <div className="min-h-screen">
@@ -241,7 +240,7 @@ export default async function DailyLogsPage({ params, searchParams }: Props) {
                 const dayNum = i - firstWeekday + 1;
                 const inMonth = dayNum >= 1 && dayNum <= daysInMonth;
                 const dateObj = new Date(year, month, Math.min(Math.max(dayNum,1), daysInMonth));
-                const dateISO = dateObj.toISOString().slice(0,10);
+                const dateISO = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
                 const logId = inMonth ? mapByDate.get(dateISO) : undefined;
                 const isToday = dateISO === todayISO;
                 nodes.push(

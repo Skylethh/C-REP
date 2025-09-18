@@ -252,16 +252,16 @@ export default function ActivitySelect({ value, onChange }: { value: string; onC
       {/* Combobox dropdown */}
       <div className="relative">
         {open && (
-          <div className="absolute z-20 mt-1 w-full max-h-72 overflow-auto rounded-lg border border-white/10 bg-emerald-950/95 backdrop-blur p-1 shadow-lg">
+          <div className="absolute z-20 mt-1 w-full max-h-72 overflow-auto rounded-lg border border-white/15 bg-emerald-950/95 backdrop-blur-md p-1 shadow-xl">
             {loading ? (
               <div className="px-3 py-2 text-white/70 text-sm">Yükleniyor…</div>
             ) : filtered.length === 0 ? (
-              <div className="px-3 py-2 text-amber-300/90 text-sm">Aramanızla eşleşen aktivite bulunamadı</div>
+              <div className="px-3 py-2 text-amber-200/90 text-sm">Aramanızla eşleşen aktivite bulunamadı</div>
             ) : (
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-white/10">
                 {favorites.size > 0 && items.some((it) => favorites.has(it.id) && tokenize(it.name).includes(tokenize(q))) ? (
                   <div className="py-1">
-                    <div className="px-3 pb-1 text-xs uppercase tracking-wide text-white/40">★ Favoriler</div>
+                    <div className="px-3 pb-1 text-xs uppercase tracking-wide text-white/50">★ Favoriler</div>
                     {items.filter((it) => favorites.has(it.id)).filter((it) => !q || tokenize(it.name).includes(tokenize(q))).map((it) => (
                       <ComboRow key={it.id} it={it} active={filtered[highlight]?.id === it.id} onPick={() => { onChange(it.id); setQ(it.name); setOpen(false); }} onFav={() => toggleFavorite(it.id)} fav={favorites.has(it.id)} />
                     ))}
@@ -269,7 +269,7 @@ export default function ActivitySelect({ value, onChange }: { value: string; onC
                 ) : null}
                 {Object.entries(groups).map(([type, arr]) => (
                   <div key={type} className="py-1">
-                    <div className="px-3 pb-1 text-xs uppercase tracking-wide text-white/40">
+                    <div className="px-3 pb-1 text-xs uppercase tracking-wide text-white/50">
                       {type === 'energy' ? '⚡ Enerji' : type === 'transport' ? '🚗 Ulaşım' : type === 'materials' ? '📦 Malzeme' : '🔄 Diğer'}
                     </div>
                     {arr.map((it, idx) => {
@@ -311,7 +311,7 @@ export default function ActivitySelect({ value, onChange }: { value: string; onC
 function ComboRow({ it, active, onPick, onFav, fav }: { it: { id: string; name: string; type: string }; active: boolean; onPick: () => void; onFav: () => void; fav: boolean }) {
   return (
     <div
-      className={`px-3 py-2 text-sm flex items-center justify-between cursor-pointer rounded-md ${active ? 'bg-emerald-800/60 text-white' : 'text-white/90 hover:bg-white/5'}`}
+      className={`px-3 py-2 text-sm flex items-center justify-between cursor-pointer rounded-md transition-colors ${active ? 'bg-emerald-800/70 text-white shadow-inner' : 'text-white/90 hover:bg-white/10'}`}
       onMouseDown={(e) => { e.preventDefault(); onPick(); }}
     >
       <span className="truncate">{it.name}</span>
@@ -319,7 +319,7 @@ function ComboRow({ it, active, onPick, onFav, fav }: { it: { id: string; name: 
         type="button"
         title={fav ? 'Favorilerden çıkar' : 'Favorilere ekle'}
         onMouseDown={(e) => { e.preventDefault(); onFav(); }}
-        className={`ml-3 text-xs ${fav ? 'text-amber-300' : 'text-white/40 hover:text-white/70'}`}
+        className={`ml-3 text-xs ${fav ? 'text-amber-300' : 'text-white/50 hover:text-white/80'}`}
       >
         {fav ? '★' : '☆'}
       </button>

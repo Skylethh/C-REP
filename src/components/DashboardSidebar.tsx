@@ -8,7 +8,8 @@ import {
   Lightbulb,
   ChevronRight,
   ChevronDown,
-  Folder
+  Folder,
+  Activity
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -118,6 +119,12 @@ export default function DashboardSidebar({
             icon={<Folder size={18} />} 
             label="Tüm Projeler" 
             active={pathname === '/projects'}
+          />
+          <NavItem 
+            href={"/entries" as any}
+            icon={<Activity size={18} />} 
+            label="Aktiviteler" 
+            active={pathname === '/entries'}
           />
           <NavItem 
             href="/reports" 

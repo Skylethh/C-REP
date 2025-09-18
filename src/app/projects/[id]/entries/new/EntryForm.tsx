@@ -12,7 +12,7 @@ type Props = {
 };
 
 export default function EntryForm({ projectId, action }: Props) {
-  const [type, setType] = useState<'energy'|'transport'|'materials'|'other'>('energy');
+  const [type, setType] = useState<'energy'|'transport'|'materials'|'other'|''>('');
   const [activity, setActivity] = useState<string>('');
   const [amount, setAmount] = useState<number>(0);
   const [unit, setUnit] = useState<string>('kWh');
@@ -104,6 +104,7 @@ export default function EntryForm({ projectId, action }: Props) {
         // 1) If an activity is selected, try mapped factor first (date-aware)
         let factor: { unit_in: string; unit_out: string; value: number } | null = null;
         if (activity) {
+          // First try date-aware
           let q = supabaseBrowser
             .from('activity_factors')
             .select('emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
@@ -112,22 +113,38 @@ export default function EntryForm({ projectId, action }: Props) {
             .order('emission_factors.valid_from', { ascending: false })
             .limit(1);
           if (date) (q as any).lte('emission_factors.valid_from', date);
-          const { data: mapped } = await q.maybeSingle();
+          let { data: mapped } = await q.maybeSingle();
           if ((mapped as any)?.emission_factors) {
             factor = (mapped as any).emission_factors as any;
+          }
+          // Fallback: ignore date if none found
+          if (!factor) {
+            const q2 = supabaseBrowser
+              .from('activity_factors')
+              .select('emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
+              .eq('activity_id', activity)
+              .eq('emission_factors.region', 'global')
+              .order('emission_factors.valid_from', { ascending: false })
+              .limit(1);
+            const { data: mapped2 } = await q2.maybeSingle();
+            if ((mapped2 as any)?.emission_factors) {
+              factor = (mapped2 as any).emission_factors as any;
+            }
           }
         }
         // 2) Fallback to category-based factor (date-aware)
         if (!factor) {
           let factorCategory = category || '';
-          // If an activity is selected but local category is empty, fetch it
+          let activityKey: string | null = null;
+          // If an activity is selected but local category is empty, fetch it (and fetch key for key-based fallback)
           if (activity && !factorCategory) {
             const { data: actCat } = await supabaseBrowser
               .from('activities')
-              .select('category')
+              .select('category, key')
               .eq('id', activity)
               .maybeSingle();
             if (actCat?.category) factorCategory = String(actCat.category);
+            if (actCat?.key) activityKey = String(actCat.key);
           }
           if (!factorCategory) factorCategory = type; // last resort
           let fq = supabaseBrowser
@@ -138,8 +155,54 @@ export default function EntryForm({ projectId, action }: Props) {
             .order('valid_from', { ascending: false })
             .limit(1);
           if (date) (fq as any).lte('valid_from', date);
-          const { data: fac } = await fq.maybeSingle();
+          let { data: fac } = await fq.maybeSingle();
           if (fac) factor = fac as any;
+          // Fallback: ignore date if none found
+          if (!factor) {
+            const fq2 = supabaseBrowser
+              .from('emission_factors')
+              .select('unit_in, unit_out, value, valid_from')
+              .eq('category', factorCategory)
+              .eq('region', 'global')
+              .order('valid_from', { ascending: false })
+              .limit(1);
+            const { data: fac2 } = await fq2.maybeSingle();
+            if (fac2) factor = fac2 as any;
+          }
+          // Fallback 2: try by activity key (e.g., concrete_c30) if category lookup failed
+          if (!factor && activity) {
+            if (!activityKey) {
+              const { data: act } = await supabaseBrowser
+                .from('activities')
+                .select('key')
+                .eq('id', activity)
+                .maybeSingle();
+              activityKey = act?.key || null;
+            }
+            if (activityKey) {
+              let fk = supabaseBrowser
+                .from('emission_factors')
+                .select('unit_in, unit_out, value, valid_from')
+                .eq('category', activityKey)
+                .eq('region', 'global')
+                .order('valid_from', { ascending: false })
+                .limit(1);
+              if (date) (fk as any).lte('valid_from', date);
+              let { data: fac3 } = await fk.maybeSingle();
+              if (fac3) factor = fac3 as any;
+              if (!factor) {
+                const fk2 = supabaseBrowser
+                  .from('emission_factors')
+                  .select('unit_in, unit_out, value, valid_from')
+                  .eq('category', activityKey)
+                  .eq('region', 'global')
+                  .order('valid_from', { ascending: false })
+                  .limit(1);
+                const { data: fac4 } = await fk2.maybeSingle();
+                if (fac4) factor = fac4 as any;
+              }
+            }
+          }
         }
         if (!factor) { setPreview('-'); setCalcError('Uygun emisyon faktörü bulunamadı'); return; }
 
@@ -170,8 +233,9 @@ export default function EntryForm({ projectId, action }: Props) {
         if (!cancelled) {
           // Display tCO2e for >= 1000 kg, otherwise kg
           const displayInTons = factor.unit_out === 'kg' && co2e >= 1000;
-          const valueStr = displayInTons ? (co2e / 1000).toFixed(3) : co2e.toFixed(3);
-          const unitStr = displayInTons ? 't' : factor.unit_out;
+          const valueNum = displayInTons ? (co2e / 1000) : co2e;
+          const valueStr = valueNum.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+          const unitStr = displayInTons ? 'tCO2e' : `${factor.unit_out} CO2e`;
           setPreview(`${valueStr} ${unitStr}`);
           setCalcError(null);
         }
@@ -189,6 +253,8 @@ export default function EntryForm({ projectId, action }: Props) {
           window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Kaydediliyor…', variant: 'info' } }));
         }
       }}>
+        {/* Hidden project id for server action */}
+        <input type="hidden" name="project_id" value={projectId} />
         {/* Adım 1: Aktivite Seçimi */}
         <div className="p-6 border-b border-white/10 bg-gradient-to-r from-white/5 to-transparent">
           <div className="flex items-center gap-3 mb-4">
@@ -220,13 +286,20 @@ export default function EntryForm({ projectId, action }: Props) {
                     {activity && <span className="text-xs text-white/50">(Aktiviteden alındı)</span>}
                   </label>
                   <div className="relative">
+                    {/* When the select is disabled, HTML forms do not submit its value.
+                        Submit a hidden input so server action receives 'type'. */}
+                    {activity ? (
+                      <input type="hidden" name="type" value={type} />
+                    ) : null}
                     <select 
                       name="type" 
                       value={type} 
                       onChange={(e) => setType(e.target.value as any)} 
                       disabled={!!activity} 
+                      required={!activity}
                       className="form-input disabled:bg-white/5 disabled:border-white/5 disabled:text-white/70 appearance-none pr-10 w-full"
                     >
+                      <option value="">Seç</option>
                       <option value="energy">Enerji</option>
                       <option value="transport">Ulaşım</option>
                       <option value="materials">Malzeme</option>
@@ -242,10 +315,14 @@ export default function EntryForm({ projectId, action }: Props) {
                 
                 <div className="space-y-2">
                   <label className="form-label flex items-center gap-2">
-                    <span>Kapsam</span>
+                    <span>Emisyon Kaynağı</span>
                     {activity && <span className="text-xs text-white/50">(Aktiviteden alındı)</span>}
                   </label>
                   <div className="relative">
+                    {/* Same for scope: ensure value is submitted when select is disabled */}
+                    {activity ? (
+                      <input type="hidden" name="scope" value={scope} />
+                    ) : null}
                     <select 
                       name="scope" 
                       value={scope} 
@@ -254,15 +331,18 @@ export default function EntryForm({ projectId, action }: Props) {
                       className="form-input disabled:bg-white/5 disabled:border-white/5 disabled:text-white/70 appearance-none pr-10 w-full"
                     >
                       <option value="">Seç</option>
-                      <option value="scope1">Scope 1</option>
-                      <option value="scope2">Scope 2</option>
-                      <option value="scope3">Scope 3</option>
+                      <option value="scope1">Doğrudan</option>
+                      <option value="scope2">Satın Alınan Enerji</option>
+                      <option value="scope3">Diğer Dolaylı</option>
                     </select>
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-white/50">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="m6 9 6 6 6-6"/>
                       </svg>
                     </div>
+                    <p className="text-xs text-white/50 mt-1">
+                      Doğrudan: kendi faaliyetlerinizden; Satın Alınan Enerji: tüketilen elektrik/ısı; Diğer Dolaylı: tedarik/taşımacılık vb.
+                    </p>
                   </div>
                 </div>
                 

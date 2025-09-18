@@ -56,7 +56,7 @@ export default function SignupPage() {
             const result = await signup(formData);
             
             if ('error' in result) {
-              setError(result.error);
+              setError(result.error || 'Bilinmeyen hata');
               setSuccess(null);
             } else if ('success' in result) {
               setSuccess(result.success);

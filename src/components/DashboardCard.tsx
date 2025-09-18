@@ -10,14 +10,14 @@ interface DashboardCardProps {
 
 export function DashboardCard({ title, icon, children, className = '', footer }: DashboardCardProps) {
   return (
-    <div className={`dashboard-card overflow-hidden ${className}`}>
+    <div className={`dashboard-card overflow-hidden h-full flex flex-col ${className}`}>
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-gradient-to-r from-white/5 to-white/3">
         <div className="flex items-center gap-2.5">
           {icon && <div className="text-leaf-400">{icon}</div>}
           <h3 className="font-medium text-white tracking-tight">{title}</h3>
         </div>
       </div>
-      <div className="p-6">
+      <div className="p-6 flex-1">
         {children}
       </div>
       {footer && (

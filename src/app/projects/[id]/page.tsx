@@ -1,14 +1,18 @@
 import { createClient } from '@/lib/server';
+import { formatCo2eTons } from '@/lib/units';
+export const dynamic = 'force-dynamic';
 import { EvidenceUploader } from '@/components/EvidenceUploader';
 import Link from 'next/link';
 import { EvidenceList } from '@/components/EvidenceList';
 import { getMessages } from '@/i18n';
-import { BarChart2, Layers, ChevronLeft, Factory, Cloud, Zap, Truck, Package, HelpCircle } from 'lucide-react';
+import { BarChart2, Layers, ChevronLeft, Factory, Cloud, Zap, Truck, Package, HelpCircle, Eye, Trash2 } from 'lucide-react';
+import { deleteEntryAction } from '@/app/entries/actions';
+import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton';
 
-export default async function ProjectDetail({ params, searchParams }: { params: { id: string }, searchParams: Record<string, string | string[] | undefined> }) {
+export default async function ProjectDetail({ params, searchParams }: { params: Promise<{ id: string }>, searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { dict } = await getMessages();
-  const p = params;
-  const sp = searchParams || {} as Record<string, string | string[] | undefined>;
+  const p = await params;
+  const sp = await searchParams || {} as Record<string, string | string[] | undefined>;
   const showSuccess = sp?.success === 'true';
   const successMessage = sp?.message as string || 'İşlem başarıyla tamamlandı';
   const supabase = await createClient();
@@ -27,8 +31,9 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
 
   const entriesQuery = supabase
     .from('entries')
-    .select('id, type, amount, unit, date, co2e_value, co2e_unit, scope, category', { count: 'exact' })
+    .select('id, type, amount, unit, date, co2e_value, co2e_unit, scope, category, notes, created_by, activities(name, key)', { count: 'exact' })
     .eq('project_id', p.id)
+    .order('created_at', { ascending: false })
     .order('date', { ascending: false })
     .range(from, to);
   if (start) entriesQuery.gte('date', start);
@@ -55,6 +60,13 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
   ]);
 
   if (!project) return <div>{dict.misc?.notFound ?? 'Proje bulunamadı'}</div>;
+
+  // Fetch members once for the project to map creator user id -> email, role
+  const { data: members } = await supabase.rpc('get_project_members', { p_project: p.id });
+  const memberMap = new Map<string, { email: string; role: string }>();
+  (members || []).forEach((m: any) => memberMap.set(m.user_id, { email: m.email, role: m.role }));
+  const formatRole = (r?: string) => r === 'owner' ? 'sahip' : r === 'editor' ? 'editör' : r === 'viewer' ? 'görüntüleyici' : (r || '');
+  const emailToName = (email?: string) => (email || '').split('@')[0] || '';
 
   const totalByType = (entries ?? []).reduce<Record<string, number>>((acc, e) => {
     acc[e.type] = (acc[e.type] || 0) + (Number(e.co2e_value) || 0);
@@ -111,6 +123,12 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 </svg>
                 <span>Yeni Kayıt Ekle</span>
               </Link>
+              <Link 
+                href={`/projects/${project.id}/members`}
+                className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
+              >
+                Üyeler
+              </Link>
               
               <Link 
                 href={`/projects/${project.id}/export`}
@@ -157,7 +175,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
         <div>
               <div className="text-sm text-white/70 mb-1">Toplam Emisyon</div>
               <div className="text-3xl font-bold highlight-text">
-                {(totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0).toFixed(2)} kg
+                {(() => { const v = (totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0); const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}
               </div>
               <div className="text-xs text-white/60 mt-1">CO₂ eşdeğeri</div>
             </div>
@@ -174,9 +192,12 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
             <div className="rounded-lg bg-white/5 border border-white/10 p-3">
               <div className="text-xs text-white/60 mb-1">Ortalama</div>
               <div className="text-xl font-semibold">
-                {entries && entries.length > 0 
-                  ? ((totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0) / entries.length).toFixed(2) 
-                  : "0.00"} kg
+                {(() => {
+                  const total = totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0;
+                  const avg = entries && entries.length > 0 ? total / entries.length : 0;
+                  const f = formatCo2eTons(avg, 3);
+                  return `${f.value} ${f.unit}`;
+                })()}
               </div>
             </div>
           </div>
@@ -208,7 +229,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                   <li key={k} className="space-y-1">
                     <div className="flex justify-between items-center text-sm">
                       <span className="capitalize">{k}</span>
-                      <span className="font-medium">{v.toFixed(2)} kg</span>
+                      <span className="font-medium">{(() => { const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}</span>
                     </div>
                     <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div 
@@ -224,10 +245,10 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
           </ul>
         </div>
         
-        {/* Scope Bazında CO2e Kartı */}
+  {/* Emisyon Kaynağı (eski adıyla Scope) Bazında CO2e Kartı */}
         <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-5 shadow-md hover:shadow-lg transition-all duration-300">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-medium text-base">{dict.cards?.emissionByScope ?? 'Kapsam Bazında Emisyon'}</h3>
+            <h3 className="font-medium text-base">{dict.cards?.emissionByScope ?? 'Emisyon Kaynağı Bazında Emisyon'}</h3>
             <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
               <Layers size={16} className="text-leaf-400" />
             </div>
@@ -247,16 +268,16 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 if (k === 'unknown') colorClass = 'bg-gray-500';
                 
                 let scopeLabel = k;
-                if (k === 'scope1') scopeLabel = 'Kapsam 1';
-                if (k === 'scope2') scopeLabel = 'Kapsam 2';
-                if (k === 'scope3') scopeLabel = 'Kapsam 3';
+                if (k === 'scope1') scopeLabel = 'Doğrudan';
+                if (k === 'scope2') scopeLabel = 'Satın Alınan Enerji';
+                if (k === 'scope3') scopeLabel = 'Diğer Dolaylı';
                 if (k === 'unknown') scopeLabel = 'Bilinmeyen';
                 
                 return (
                   <li key={k} className="space-y-1">
                     <div className="flex justify-between items-center text-sm">
                       <span>{scopeLabel}</span>
-                      <span className="font-medium">{v.toFixed(2)} kg</span>
+                      <span className="font-medium">{(() => { const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}</span>
                     </div>
                     <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div 
@@ -272,8 +293,8 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
           </ul>
         </div>
       </section>
-        {/* Kayıtlar Başlığı ve Filtreleme */}
-        <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-6 shadow-md">
+  {/* Kayıtlar Başlığı ve Filtreleme */}
+  <div id="entries" className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-6 shadow-md scroll-mt-24">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
@@ -357,12 +378,12 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
           </div>
               
               <div className="space-y-1">
-                <label className="form-label">Kapsam</label>
+                <label className="form-label">Emisyon Kaynağı</label>
                 <select name="scope" defaultValue={filterScope} className="form-input">
-                  <option value="">Tüm Scope'lar</option>
-              <option value="scope1">Kapsam 1</option>
-              <option value="scope2">Kapsam 2</option>
-              <option value="scope3">Kapsam 3</option>
+                  <option value="">Tümü</option>
+              <option value="scope1">Doğrudan</option>
+              <option value="scope2">Satın Alınan Enerji</option>
+              <option value="scope3">Diğer Dolaylı</option>
             </select>
           </div>
               
@@ -397,12 +418,12 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
               
               <div className="flex items-center gap-2">
                 <span className="text-white/70 text-sm">Toplam CO₂e:</span>
-                <span className="text-lg font-semibold highlight-text">{(totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0).toFixed(2)} kg</span>
+                <span className="text-lg font-semibold highlight-text">{(() => { const v = (totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0); const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}</span>
               </div>
             </div>
           </form>
         </div>
-        <div className="mt-6 space-y-6">
+  <div id="entries" className="mt-6 space-y-6 scroll-mt-24">
           {(!entries || entries.length === 0) ? (
             <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-8 text-center">
               <div className="bg-gradient-to-br from-leaf-500/10 to-ocean-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-md">
@@ -430,91 +451,93 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
             <div className="space-y-4">
               {entries?.map((e) => {
                 const entryEvidence = (evidence || []).filter((x: any) => x.entry_id === e.id);
-                
+
                 // Tür için renk ve ikon belirleme
                 let typeColor = 'bg-leaf-500';
                 let typeIcon = <Zap size={16} />;
-                
-                if (e.type === 'transport') {
-                  typeColor = 'bg-blue-500';
-                  typeIcon = <Truck size={16} />;
-                } else if (e.type === 'materials') {
-                  typeColor = 'bg-amber-500';
-                  typeIcon = <Package size={16} />;
-                } else if (e.type === 'other') {
-                  typeColor = 'bg-purple-500';
-                  typeIcon = <HelpCircle size={16} />;
-                }
-                
-                // Scope için renk ve etiket belirleme
+                if (e.type === 'transport') { typeColor = 'bg-blue-500'; typeIcon = <Truck size={16} />; }
+                else if (e.type === 'materials') { typeColor = 'bg-amber-500'; typeIcon = <Package size={16} />; }
+                else if (e.type === 'other') { typeColor = 'bg-purple-500'; typeIcon = <HelpCircle size={16} />; }
+
+                // Emisyon kaynağı (scope) için renk ve etiket
                 let scopeColor = 'bg-emerald-500/20 text-emerald-300';
                 let scopeLabel = 'Bilinmeyen';
-                
-                if (e.scope === 'scope1') {
-                  scopeColor = 'bg-emerald-500/20 text-emerald-300';
-                  scopeLabel = 'Scope 1';
-                } else if (e.scope === 'scope2') {
-                  scopeColor = 'bg-blue-500/20 text-blue-300';
-                  scopeLabel = 'Scope 2';
-                } else if (e.scope === 'scope3') {
-                  scopeColor = 'bg-amber-500/20 text-amber-300';
-                  scopeLabel = 'Scope 3';
-                }
-                
+                if ((e as any).scope === 'scope1') { scopeColor = 'bg-emerald-500/20 text-emerald-300'; scopeLabel = 'Doğrudan'; }
+                else if ((e as any).scope === 'scope2') { scopeColor = 'bg-blue-500/20 text-blue-300'; scopeLabel = 'Satın Alınan Enerji'; }
+                else if ((e as any).scope === 'scope3') { scopeColor = 'bg-amber-500/20 text-amber-300'; scopeLabel = 'Diğer Dolaylı'; }
+
                 return (
-                  <div key={e.id} className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-5 shadow-md hover:shadow-lg transition-all duration-300">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div key={e.id} className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-5 shadow-md hover:shadow-lg transition-all duration-300 hover:border-white/20">
+                    <div className="flex flex-col md:flex-row md:items-center gap-4">
                       <div className="flex items-start gap-4">
                         <div className={`p-3 rounded-lg ${typeColor} bg-opacity-20 flex-shrink-0`}>
                           <div className={`text-${typeColor.split('-')[1]}-300`}>
                             {typeIcon}
                           </div>
                         </div>
-                        
-          <div>
+                        <div>
                           <div className="flex items-center gap-3 mb-1">
-                            <h3 className="font-medium text-base capitalize">{e.type}</h3>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${scopeColor}`}>{scopeLabel}</span>
-                            {e.category && (
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">{e.category}</span>
+                            <h3 className="font-medium text-base">{(e as any).activities?.name || e.category || e.type}</h3>
+                            <span className={`text-xs px-2 py-0.5 rounded-full ${scopeColor} border border-white/10`}>{scopeLabel}</span>
+                            {(e as any).category && (
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70 border border-white/10">{(e as any).category}</span>
                             )}
                           </div>
                           <div className="text-white/70 text-sm">
                             <span className="font-medium">{e.amount} {e.unit}</span>
                             <span className="mx-2 text-white/40">•</span>
-                            <span>{new Date(e.date).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+                            <span>{new Date(e.date as any).toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
                           </div>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className="text-xs text-white/60">CO₂ Eşdeğeri</div>
-                          <div className="text-xl font-semibold highlight-text">{e.co2e_value ?? '-'} {e.co2e_unit ?? 'kg'}</div>
+
+                      <div className="md:ml-auto w-full md:w-auto">
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="flex items-center justify-between md:justify-end gap-3 w-full">
+                            <div className="text-right">
+                              <div className="text-xs text-white/60">CO₂ Eşdeğeri</div>
+                              <div className="text-xl font-semibold highlight-text">{(() => { const v = Number((e as any).co2e_value ?? 0); const f = formatCo2eTons(v, 3); return isFinite(v) && v>0 ? `${f.value} ${f.unit}` : '-'; })()}</div>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <Link
+                                href={`/entries/${e.id}` as any}
+                                className="px-2 py-1 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-white/80 hover:text-white transition-colors shadow-sm"
+                                title="Görüntüle"
+                              >
+                                <Eye size={14} />
+                              </Link>
+                              <form action={deleteEntryAction}>
+                                <input type="hidden" name="entryId" value={e.id} />
+                                <input type="hidden" name="redirectTo" value={("/projects/" + project.id + "#entries") as any} />
+                                <ConfirmSubmitButton
+                                  className="px-2 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 transition-colors shadow-sm"
+                                  message="Bu aktiviteyi silmek istediğinize emin misiniz?"
+                                  title="Sil"
+                                >
+                                  <Trash2 size={14} />
+                                </ConfirmSubmitButton>
+                              </form>
+                            </div>
+                          </div>
+                          <div className="text-xs text-white/60 text-right w-full">
+                            {(() => {
+                              const creator = (e as any).created_by;
+                              const info = creator ? memberMap.get(creator) : null;
+                              if (!info) return null;
+                              return <span>{formatRole(info.role)}: {emailToName(info.email)}</span>;
+                            })()}
+                          </div>
                         </div>
-                        
-                        <button 
-                          className="p-2 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 transition-all"
-                          onClick={() => {
-                            // Kanıt bölümünü aç/kapa
-                          }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="m6 9 6 6 6-6"></path>
-                          </svg>
-                        </button>
                       </div>
                     </div>
-                    
+
                     {/* Kanıt bölümü - varsayılan olarak kapalı */}
                     <div className="mt-4 pt-4 border-t border-white/5 hidden">
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-medium">Kanıtlar</h4>
                         <button className="text-xs text-white/60 hover:text-white underline">Tümünü Göster</button>
                       </div>
-                      
                       <EvidenceUploader projectId={project.id} entryId={e.id} />
-                      
                       {entryEvidence.length > 0 ? (
                         <EvidenceList projectId={project.id} items={entryEvidence as any} />
                       ) : (
@@ -522,8 +545,8 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                           {dict.misc?.noEvidence ?? 'Bu kayda ekli kanıt yok.'}
                         </div>
                       )}
-          </div>
-              </div>
+                    </div>
+                  </div>
                 );
               })}
               

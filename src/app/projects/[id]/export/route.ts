@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   ];
   const rows = (data ?? []).map((e) => {
     const valueKg = Number(e.co2e_value || 0);
-    const display = valueKg >= 1000 ? `${(valueKg/1000).toFixed(3)} t` : `${valueKg.toFixed(3)} kg`;
+    const display = `${(valueKg/1000).toFixed(3)} tCO2e`;
     return [
       e.id,
       e.type,

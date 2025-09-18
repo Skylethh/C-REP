@@ -26,7 +26,7 @@ export default async function OrgMenu() {
         className="bg-transparent border border-white/15 rounded-md px-2 py-1 text-sm"
       >
         {orgs.map((o) => (
-          <option key={o.organization_id} value={o.organization_id}>{o.organizations?.name ?? o.organization_id}</option>
+          <option key={o.organization_id} value={o.organization_id}>{(o as any).organizations?.name ?? o.organization_id}</option>
         ))}
       </select>
       <button type="submit" className="text-xs underline">Seç</button>

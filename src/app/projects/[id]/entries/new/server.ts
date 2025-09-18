@@ -2,6 +2,7 @@
 import { createClient } from '@/lib/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import type { Route } from 'next';
 import { z } from 'zod';
 import { captureServerError } from '@/sentry.server.config';
 
@@ -14,19 +15,25 @@ const schema = z.object({
 });
 
 export async function createEntry(projectId: string, formData: FormData) {
-  const parsed = schema.safeParse({
-    type: formData.get('type'),
-    date: formData.get('date'),
-    amount: formData.get('amount'),
-    unit: formData.get('unit'),
-    notes: formData.get('notes')
-  });
-  if (!parsed.success) return;
-  const { type, date, amount, unit, notes } = parsed.data;
+  try {
+    const parsed = schema.safeParse({
+      type: formData.get('type'),
+      date: formData.get('date'),
+      amount: formData.get('amount'),
+      unit: formData.get('unit'),
+      notes: formData.get('notes')
+    });
+    if (!parsed.success) {
+      const msg = parsed.error.issues?.[0]?.message || 'Form geçersiz. Lütfen alanları kontrol edin.';
+      return redirect(`/projects/${projectId}/entries/new?error=${encodeURIComponent(msg)}`);
+    }
+    const { type, date, amount, unit, notes } = parsed.data;
 
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return redirect(`/login?next=${encodeURIComponent(`/projects/${projectId}/entries/new`)}`);
+    }
 
   // Fetch activity (if selected) to drive unit validation and factor selection
   const activityId = (formData.get('activity_id') as string) || '';
@@ -45,7 +52,7 @@ export async function createEntry(projectId: string, formData: FormData) {
   try {
     const todayStr = new Date().toISOString().slice(0, 10);
     if (date > todayStr) {
-      throw new Error('Gelecekteki bir tarih için kayıt oluşturulamaz');
+      return redirect(`/projects/${projectId}/entries/new?error=${encodeURIComponent('Gelecekteki bir tarih için kayıt oluşturulamaz')}`);
     }
   } catch (e) {
     // If date parsing fails for any reason, let zod validation handle it later
@@ -84,7 +91,7 @@ export async function createEntry(projectId: string, formData: FormData) {
       return sameActivity && amtClose;
     });
     if (found) {
-      throw new Error('Benzer bir kayıt zaten mevcut. Lütfen girdiyi kontrol edin.');
+      return redirect(`/projects/${projectId}/entries/new?error=${encodeURIComponent('Benzer bir kayıt zaten mevcut. Lütfen girdiyi kontrol edin.')}`);
     }
   }
 
@@ -107,7 +114,7 @@ export async function createEntry(projectId: string, formData: FormData) {
         const ratio = amount / median;
         // Hard stop for extreme anomalies (100x+ of historical median)
         if (ratio > 100) {
-          throw new Error("Girilen miktar alışılmadık derecede yüksek görünüyor. Birimi veya değeri kontrol edin.");
+          return redirect(`/projects/${projectId}/entries/new?error=${encodeURIComponent('Girilen miktar alışılmadık derecede yüksek görünüyor. Birimi veya değeri kontrol edin.')}`);
         }
       }
     }
@@ -116,7 +123,7 @@ export async function createEntry(projectId: string, formData: FormData) {
   // Validate unit against activity allowed units if present
   if (activity?.units && Array.isArray(activity.units) && activity.units.length > 0) {
     if (!activity.units.includes(unit)) {
-      throw new Error('Seçilen birim aktivite ile uyumlu değil');
+      return redirect(`/projects/${projectId}/entries/new?error=${encodeURIComponent('Seçilen birim aktivite ile uyumlu değil')}`);
     }
   }
 
@@ -133,8 +140,20 @@ export async function createEntry(projectId: string, formData: FormData) {
       .limit(1);
     // Date-aware factor: choose factor whose valid_from <= entry date
     if (date) (q as any).lte('emission_factors.valid_from', date);
-    const { data: mapped } = await q.maybeSingle();
+    let { data: mapped } = await q.maybeSingle();
     if (mapped) factor = (mapped as any).emission_factors;
+    // Fallback: ignore date if none found
+    if (!factor) {
+      const q2 = supabase
+        .from('activity_factors')
+        .select('factor_id, emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
+        .eq('activity_id', activity.id)
+        .eq('emission_factors.region', 'global')
+        .order('emission_factors.valid_from', { ascending: false })
+        .limit(1);
+      const { data: mapped2 } = await q2.maybeSingle();
+      if (mapped2) factor = (mapped2 as any).emission_factors;
+    }
   }
   if (!factor) {
     const fq = supabase
@@ -145,8 +164,52 @@ export async function createEntry(projectId: string, formData: FormData) {
       .order('valid_from', { ascending: false })
       .limit(1);
     if (date) (fq as any).lte('valid_from', date);
-    const resp = await fq.maybeSingle();
+    let resp = await fq.maybeSingle();
     factor = resp.data;
+    // Fallback: ignore date if none found
+    if (!factor) {
+      const fq2 = supabase
+        .from('emission_factors')
+        .select('unit_in, unit_out, value, valid_from')
+        .eq('category', factorCategory)
+        .eq('region', 'global')
+        .order('valid_from', { ascending: false })
+        .limit(1);
+      const resp2 = await fq2.maybeSingle();
+      factor = resp2.data;
+    }
+    // Fallback 2: If still not found and we have an activity with a specific key, try factor by key (e.g., concrete_c30)
+    if (!factor && activity?.id) {
+      const { data: actKeyRow } = await supabase
+        .from('activities')
+        .select('key')
+        .eq('id', activity.id)
+        .maybeSingle();
+      const key = actKeyRow?.key as string | undefined;
+      if (key) {
+        const fk = supabase
+          .from('emission_factors')
+          .select('unit_in, unit_out, value, valid_from')
+          .eq('category', key)
+          .eq('region', 'global')
+          .order('valid_from', { ascending: false })
+          .limit(1);
+        if (date) (fk as any).lte('valid_from', date);
+        let kresp = await fk.maybeSingle();
+        factor = kresp.data;
+        if (!factor) {
+          const fk2 = await supabase
+            .from('emission_factors')
+            .select('unit_in, unit_out, value, valid_from')
+            .eq('category', key)
+            .eq('region', 'global')
+            .order('valid_from', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          factor = fk2.data;
+        }
+      }
+    }
   }
 
   let co2e_value: number | null = null;
@@ -162,32 +225,76 @@ export async function createEntry(projectId: string, formData: FormData) {
         .eq('to_unit', factor.unit_in)
         .maybeSingle();
       if (!conv?.multiplier) {
-        throw new Error(`'${unit}' biriminden '${factor.unit_in}' birimine dönüşüm bulunamadı`);
+        return redirect(`/projects/${projectId}/entries/new?error=${encodeURIComponent(`'${unit}' biriminden '${factor.unit_in}' birimine dönüşüm bulunamadı`)}`);
       }
       multiplier = Number(conv.multiplier);
     }
     const normalizedAmount = amount * multiplier;
-    co2e_value = normalizedAmount * Number(factor.value);
-    co2e_unit = factor.unit_out;
+    const raw = normalizedAmount * Number(factor.value);
+    // Normalize to kilograms in DB. If factor outputs grams or tons, convert to kg.
+    if (factor.unit_out === 'g') {
+      co2e_value = raw / 1000;
+      co2e_unit = 'kg';
+    } else if (factor.unit_out === 't' || factor.unit_out === 'ton' || factor.unit_out === 'tons') {
+      co2e_value = raw * 1000;
+      co2e_unit = 'kg';
+    } else {
+      // Assume kg for unknown or 'kg'
+      co2e_value = raw;
+      co2e_unit = 'kg';
+    }
   }
 
-  const { error } = await supabase.from('entries').insert({
-    project_id: projectId,
-    type: activity?.type || type,
-    date,
-    amount,
-    unit,
-    scope: (formData.get('scope') as string) || activity?.scope || null,
-    category: (formData.get('category') as string) || activity?.category || null,
-    activity_id: activity?.id || null,
-    notes,
-    created_by: user.id,
-    co2e_value,
-    co2e_unit,
+  // Use privileged RPC to avoid client-side RLS edge cases and ensure membership is enforced server-side
+  const { data: newId, error } = await supabase.rpc('create_entry_privileged', {
+    p_project_id: projectId,
+    p_user_id: user.id,
+    p_type: activity?.type || type,
+    p_date: date,
+    p_amount: amount,
+    p_unit: unit,
+    p_scope: (formData.get('scope') as string) || activity?.scope || null,
+    p_category: (formData.get('category') as string) || activity?.category || null,
+    p_activity_id: activity?.id || null,
+    p_notes: notes,
+    p_co2e_value: co2e_value,
+    p_co2e_unit: co2e_unit,
   });
-  if (error) { captureServerError(error, { where: 'createEntry', projectId, activityId, factor_unit_in: factor?.unit_in, unit }); throw error; }
+  if (error) {
+    captureServerError(error, { where: 'createEntry', projectId, activityId, factor_unit_in: factor?.unit_in, unit, code: (error as any).code });
+    // Graceful UX: redirect back with friendly message instead of crashing
+    const msg = (error as any)?.code === '42501'
+      ? 'Bu projeye kayıt ekleme yetkiniz yok. Lütfen proje yöneticisinden yetki isteyin.'
+      : (error.message || 'Kayıt oluşturulamadı. Lütfen tekrar deneyin.');
+    redirect(`/projects/${projectId}/entries/new?error=${encodeURIComponent(msg)}`);
+  }
   revalidatePath(`/projects/${projectId}`);
-  redirect(`/projects/${projectId}?success=true&message=Kayıt başarıyla oluşturuldu`);
+  if (newId) {
+    redirect((`/entries/${newId}#evidence` as unknown) as Route);
+  }
+  redirect(`/projects/${projectId}?success=true&message=${encodeURIComponent('Kayıt başarıyla oluşturuldu')}`);
+  } catch (e: any) {
+    // Catch-all: never leave the user without feedback
+    try {
+      captureServerError(e, { where: 'createEntry.catch', projectId });
+    } catch {}
+    // Preserve Next.js redirect behavior
+    if (e && typeof e === 'object' && typeof (e as any).digest === 'string' && (e as any).digest.includes('NEXT_REDIRECT')) {
+      throw e;
+    }
+    const msg = e?.message || 'Kayıt oluşturulamadı. Lütfen tekrar deneyin.';
+    return redirect(`/projects/${projectId}/entries/new?error=${encodeURIComponent(msg)}`);
+  }
+}
+
+// Top-level server action: reads project id from hidden field to avoid closure serialization issues
+export async function submitEntryAction(formData: FormData) {
+  'use server';
+  const projectId = String(formData.get('project_id') || '');
+  if (!projectId) {
+    redirect(('/dashboard?error=' + encodeURIComponent('Proje bilgisi eksik')) as Route);
+  }
+  await createEntry(projectId, formData);
 }
 
 

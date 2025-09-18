@@ -1869,3 +1869,625 @@ select a.id, f.id from activities a
 join emission_factors f on f.category = a.category and f.region = 'global'
 where a.key in ('insaat_yikinti_atigi_t','insaat_yikinti_atigi_m3','geri_donusulen_metal')
 on conflict do nothing;
+
+
+-- 033_seed_basic_factors.sql
+-- Seed non-zero baseline emission factors for common construction items
+-- Note: Values are illustrative (ICE/DEFRA-like) placeholders to enable working calculations.
+-- Replace with authoritative data as needed.
+
+-- Ensure units exist
+insert into units(code) values ('m3') on conflict do nothing;
+insert into units(code) values ('m2') on conflict do nothing;
+insert into units(code) values ('kg') on conflict do nothing;
+insert into units(code) values ('L') on conflict do nothing;
+
+-- CONCRETE (ready-mix by class)
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('grobeton_c16_20',     'scope3', 'global', 'm3', 'kg', 200, 'seed:basic', '2025', '2025-01-01'),
+  ('hazir_beton_c20_25',  'scope3', 'global', 'm3', 'kg', 220, 'seed:basic', '2025', '2025-01-01'),
+  ('hazir_beton_c25_30',  'scope3', 'global', 'm3', 'kg', 250, 'seed:basic', '2025', '2025-01-01'),
+  ('hazir_beton_c30_37',  'scope3', 'global', 'm3', 'kg', 280, 'seed:basic', '2025', '2025-01-01'),
+  ('sap_betonu',          'scope3', 'global', 'm3', 'kg', 150, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- STEEL / REBAR
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('hasir_celik', 'scope3', 'global', 'kg', 'kg', 1.70, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- MEMBRANES & DRAIN
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('bitumlu_membran', 'scope3', 'global', 'm2', 'kg', 1.0, 'seed:basic', '2025', '2025-01-01'),
+  ('drenaj_levhasi',  'scope3', 'global', 'm2', 'kg', 0.8, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- WALL / FINISHES / INSULATION
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('gazbeton',             'scope3', 'global', 'm3', 'kg', 180, 'seed:basic', '2025', '2025-01-01'),
+  ('bims_blok',            'scope3', 'global', 'piece', 'kg', 3.0, 'seed:basic', '2025', '2025-01-01'),
+  ('cimento_esasli_siva',  'scope3', 'global', 'kg', 'kg', 0.12, 'seed:basic', '2025', '2025-01-01'),
+  ('alci_siva',            'scope3', 'global', 'kg', 'kg', 0.25, 'seed:basic', '2025', '2025-01-01'),
+  ('duvar_orgu_harci',     'scope3', 'global', 'kg', 'kg', 0.10, 'seed:basic', '2025', '2025-01-01'),
+  ('isi_yalitim_eps',      'scope3', 'global', 'm3', 'kg', 80,   'seed:basic', '2025', '2025-01-01'),
+  ('isi_yalitim_xps',      'scope3', 'global', 'm3', 'kg', 120,  'seed:basic', '2025', '2025-01-01'),
+  ('cam_yunu',             'scope3', 'global', 'm3', 'kg', 60,   'seed:basic', '2025', '2025-01-01'),
+  ('duz_cam',              'scope3', 'global', 'm2', 'kg', 12,   'seed:basic', '2025', '2025-01-01'),
+  ('isicam',               'scope3', 'global', 'm2', 'kg', 18,   'seed:basic', '2025', '2025-01-01'),
+  ('aluminyum_dograma',    'scope3', 'global', 'kg', 'kg', 8.5,  'seed:basic', '2025', '2025-01-01'),
+  ('pvc_dograma',          'scope3', 'global', 'kg', 'kg', 2.8,  'seed:basic', '2025', '2025-01-01'),
+  ('ic_cephe_boyasi',      'scope3', 'global', 'L',  'kg', 2.2,  'seed:basic', '2025', '2025-01-01'),
+  ('dis_cephe_boyasi',     'scope3', 'global', 'L',  'kg', 2.4,  'seed:basic', '2025', '2025-01-01'),
+  ('parke',                'scope3', 'global', 'm2', 'kg', 8,    'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- MEP
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('pprc_boru',            'scope3', 'global', 'm',  'kg', 2.6, 'seed:basic', '2025', '2025-01-01'),
+  ('hava_kanali_galvaniz', 'scope3', 'global', 'kg', 'kg', 2.2, 'seed:basic', '2025', '2025-01-01'),
+  ('bakir_klima_borusu',   'scope3', 'global', 'm',  'kg', 4.4, 'seed:basic', '2025', '2025-01-01'),
+  ('bakir_elektrik_kablosu','scope3','global','m',  'kg', 4.0, 'seed:basic', '2025', '2025-01-01'),
+  ('kablo_tavasi',         'scope3', 'global', 'm',  'kg', 2.0, 'seed:basic', '2025', '2025-01-01'),
+  ('asansor',              'scope3', 'global', 'piece', 'kg', 500, 'seed:basic', '2025', '2025-01-01'),
+  ('klima_santrali',       'scope3', 'global', 'piece', 'kg', 1200,'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- SITE OPERATIONS
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('kule_vinc_saat', 'scope2', 'global', 'h', 'kg', 4.0, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- WASTE
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('insaat_yikinti_atigi_t',  'scope3', 'global', 't',  'kg', 15,  'seed:basic', '2025', '2025-01-01'),
+  ('insaat_yikinti_atigi_m3', 'scope3', 'global', 'm3', 'kg', 50,  'seed:basic', '2025', '2025-01-01'),
+  ('geri_donusulen_metal',    'scope3', 'global', 'kg', 'kg', -1,  'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- FUEL (Diesel in L)
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('fuel', 'scope1', 'global', 'L', 'kg', 2.68, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Ensure activities are mapped to latest factors of same category (only for ones inserted above)
+insert into activity_factors(activity_id, factor_id)
+select a.id, f.id
+from activities a
+join emission_factors f on f.category = a.category and f.region = 'global'
+where f.valid_from = (select max(valid_from) from emission_factors f2 where f2.category = f.category and f2.region = f.region)
+on conflict do nothing;
+
+
+-- 034_add_rebar_alias.sql
+-- Add a Turkish-friendly alias activity for rebar (Nervürlü Demir B500)
+-- Maps to existing steel_rebar category and factors
+
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('nervurlu_demir_b500', 'Nervürlü Demir (B500)', 'materials', 'scope3', 'steel_rebar', 'kg', '{kg}')
+on conflict do nothing;
+
+-- Map to latest steel_rebar factor
+insert into activity_factors(activity_id, factor_id)
+select a.id, f.id
+from activities a
+join emission_factors f on f.category = 'steel_rebar' and f.region = 'global'
+where a.key = 'nervurlu_demir_b500'
+  and f.valid_from = (
+    select max(valid_from)
+    from emission_factors f2
+    where f2.category = 'steel_rebar' and f2.region = 'global'
+  )
+on conflict do nothing;
+
+
+-- 035_fill_missing_core_items.sql
+-- Fill missing core items and aliases with factors
+
+-- Ensure units used below exist
+insert into units(code) values ('m') on conflict do nothing;
+insert into units(code) values ('t') on conflict do nothing;
+insert into units(code) values ('kWh') on conflict do nothing;
+
+-- Add/ensure electricity factor matching activity category 'electricity'
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('electricity', 'scope2', 'global', 'kWh', 'kg', 0.45, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Aggregate fill (Dolgu Agrega) – category created in 032 with unit_in 't'; provide non-zero factor
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('dolgu_agrega', 'scope3', 'global', 't', 'kg', 10, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Stone wool insulation (Taş Yünü)
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('tas_yunu', 'scope3', 'global', 'm3', 'kg', 80, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('tas_yunu', 'Taş Yünü (Çatı Şiltesi)', 'materials', 'scope3', 'tas_yunu', 'm3', '{m3}')
+on conflict do nothing;
+
+-- Alias: Nervürlü İnşaat Demiri (S420)
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('nervurlu_insaat_demiri_s420', 'Nervürlü İnşaat Demiri (S420)', 'materials', 'scope3', 'steel_rebar', 'kg', '{kg}')
+on conflict do nothing;
+
+-- Alias: Kule Vinç Yakıtı (Dizel)
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('kule_vinc_dizel', 'Kule Vinç Yakıtı (Dizel)', 'energy', 'scope1', 'fuel', 'L', '{L,kg}')
+on conflict do nothing;
+
+-- Alias: Atıkların Taşınması (km)
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('atik_tasinmasi_km', 'Atıkların Taşınması (km)', 'transport', 'scope3', 'truck_avg_km', 'km', '{km}')
+on conflict do nothing;
+
+-- Alias: PVC Atık Su Borusu (m)
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('pvc_atik_su_borusu', 'PVC Atık Su Borusu', 'materials', 'scope3', 'pipe_pvc', 'm', '{m,kg}')
+on conflict do nothing;
+
+-- Alias: Çelik Yangın Tesisatı Borusu (m)
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('celik_yangin_tesisati_borusu', 'Çelik Yangın Tesisatı Borusu', 'materials', 'scope3', 'pipe_steel', 'm', '{m,kg}')
+on conflict do nothing;
+
+-- Alias: Yapısal Çelik Profil (IPE/HEA)
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('yapisal_celik_profil', 'Yapısal Çelik Profil (IPE/HEA)', 'materials', 'scope3', 'steel_structural', 'kg', '{kg}')
+on conflict do nothing;
+
+-- Alias: Plywood Kalıp Malzemesi
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('plywood_kalip_malzemesi', 'Plywood Kalıp Malzemesi', 'materials', 'scope3', 'plywood', 'kg', '{kg}')
+on conflict do nothing;
+
+-- Alias: Şantiye Elektrik Tüketimi (Şebeke)
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('santiye_elektrik', 'Şantiye Elektrik Tüketimi (Şebeke)', 'energy', 'scope2', 'electricity', 'kWh', '{kWh}')
+on conflict do nothing;
+
+-- Alias: Şantiye Su Tüketimi
+insert into activities(key, name, type, scope, category, default_unit, units) values
+  ('santiye_su', 'Şantiye Su Tüketimi', 'other', 'scope3', 'water_supply', 'm3', '{m3}')
+on conflict do nothing;
+
+-- Map all new/alias activities to the latest matching factor in their category
+insert into activity_factors(activity_id, factor_id)
+select a.id, f.id
+from activities a
+join emission_factors f on f.category = a.category and f.region = 'global'
+where a.key in (
+  'tas_yunu','nervurlu_insaat_demiri_s420','kule_vinc_dizel','atik_tasinmasi_km',
+  'pvc_atik_su_borusu','celik_yangin_tesisati_borusu','yapisal_celik_profil',
+  'plywood_kalip_malzemesi','santiye_elektrik','santiye_su'
+)
+and f.valid_from = (
+  select max(valid_from) from emission_factors f2 where f2.category = f.category and f2.region = f.region
+)
+on conflict do nothing;
+
+
+-- 036_add_missing_factor_categories.sql
+-- Add missing factor categories referenced by aliases and activities
+
+-- Ensure base units exist
+insert into units(code) values ('kg') on conflict do nothing;
+insert into units(code) values ('m3') on conflict do nothing;
+
+-- Structural steel and rebar (illustrative placeholders)
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('steel_rebar',       'scope3', 'global', 'kg', 'kg', 1.80, 'seed:basic', '2025', '2025-01-01'),
+  ('steel_structural',  'scope3', 'global', 'kg', 'kg', 2.10, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Plywood (generic, align with plywood_birch order of magnitude)
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('plywood', 'scope3', 'global', 'kg', 'kg', 0.80, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Water supply (municipal water) per m3
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('water_supply', 'scope3', 'global', 'm3', 'kg', 0.30, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Map any existing activities using these categories to latest factors
+insert into activity_factors(activity_id, factor_id)
+select a.id, f.id
+from activities a
+join emission_factors f on f.category = a.category and f.region = 'global'
+where a.category in ('steel_rebar','steel_structural','plywood','water_supply')
+  and f.valid_from = (
+    select max(valid_from) from emission_factors f2 where f2.category = f.category and f2.region = f.region
+  )
+on conflict do nothing;
+
+
+-- 036_fix_placeholder_duplicates.sql
+-- Preemptively deduplicate placeholder emission_factors to avoid unique conflicts
+-- We keep the latest valid_from per (category, region) and remove older duplicates
+-- This runs before 037_demote_placeholder_factors.sql so later mass-update won't collide
+
+with dups as (
+  select id,
+         row_number() over (
+           partition by category, region
+           order by coalesce(valid_from, date '2100-01-01') desc, id
+         ) as rn
+  from emission_factors
+  where source = 'seed:placeholder'
+)
+delete from emission_factors ef
+using dups
+where ef.id = dups.id
+  and dups.rn > 1;
+
+-- 037_demote_placeholder_factors.sql
+-- Demote placeholder zero-value factors so that real non-zero factors are selected
+-- Set their valid_from to an older date, ensuring ORDER BY valid_from DESC picks non-zero ones
+
+update emission_factors
+set valid_from = '1900-01-01'
+where source = 'seed:placeholder'
+  and (valid_from is null or valid_from >= '1900-01-01');
+
+-- Optionally, keep region/category/unit fields as-is; mapping queries will now favor non-zero entries
+
+
+-- 038_unify_concrete_classes.sql
+-- Unify concrete classes into canonical categories and remap factors
+
+-- 1) Ensure canonical categories exist with non-zero factors
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from)
+select * from (
+  values
+    ('concrete_c20_25','scope3','global','m3','kg', 220.0, 'seed:unify', '2025', '2025-01-01'::date),
+    ('concrete_c25_30','scope3','global','m3','kg', 250.0, 'seed:unify', '2025', '2025-01-01'::date),
+    ('concrete_c30_37','scope3','global','m3','kg', 280.0, 'seed:unify', '2025', '2025-01-01'::date)
+) as v(category, scope, region, unit_in, unit_out, value, source, version, valid_from)
+on conflict do nothing;
+
+-- 2) Point existing activities to canonical categories (keep their keys for now)
+update activities set category = 'concrete_c20_25'
+where key in ('hazir_beton_c20_25','concrete_c20');
+
+update activities set category = 'concrete_c25_30'
+where key in ('hazir_beton_c25_30','concrete_c25');
+
+update activities set category = 'concrete_c30_37'
+where key in ('hazir_beton_c30_37','concrete_c30');
+
+-- 3) Remap activity_factors to latest factor in the canonical category
+insert into activity_factors(activity_id, factor_id)
+select a.id, f.id
+from activities a
+join emission_factors f on f.category = a.category and f.region = 'global'
+where a.category in ('concrete_c20_25','concrete_c25_30','concrete_c30_37')
+  and f.valid_from = (
+    select max(valid_from) from emission_factors f2 where f2.category = f.category and f2.region = f.region
+  )
+on conflict do nothing;
+
+-- 4) Clean up duplicate factor categories (optional but reduces clutter)
+-- First, delete any mapping rows that reference old duplicate categories to avoid FK issues
+delete from activity_factors af
+using emission_factors ef
+where af.factor_id = ef.id
+  and ef.category in ('hazir_beton_c20_25','hazir_beton_c25_30','hazir_beton_c30_37','concrete_c20','concrete_c25','concrete_c30');
+
+-- Then remove the old emission factor rows
+delete from emission_factors
+where category in ('hazir_beton_c20_25','hazir_beton_c25_30','hazir_beton_c30_37','concrete_c20','concrete_c25','concrete_c30');
+
+
+-- 039_secure_reference_tables.sql
+-- Secure reference-like tables: allow select for all authenticated, restrict writes via migrations only
+
+-- activities already has RLS select true; keep inserts/updates restricted by backend
+-- For emission_factors, restrict to select for everyone; writes come via migrations/admin
+alter table emission_factors enable row level security;
+
+drop policy if exists ef_select on emission_factors;
+create policy ef_select on emission_factors for select using (true);
+
+drop policy if exists ef_modify on emission_factors;
+create policy ef_modify on emission_factors for all using (false);
+
+-- For activity_factors mapping table
+alter table activity_factors enable row level security;
+
+drop policy if exists af_select on activity_factors;
+create policy af_select on activity_factors for select using (true);
+
+drop policy if exists af_modify on activity_factors;
+create policy af_modify on activity_factors for all using (false);
+
+
+-- 040_set_nonzero_for_placeholders.sql
+-- Provide non-zero baseline factors for remaining placeholder categories
+
+-- Machine operation (hour-based) — illustrative placeholders
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('ekskavator_saat',    'scope1', 'global', 'h', 'kg', 25.0, 'seed:basic', '2025', '2025-01-01'),
+  ('dozer_loader_saat',  'scope1', 'global', 'h', 'kg', 35.0, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Fill/stabilize aggregate
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('dolgu_stabilize', 'scope3', 'global', 't', 'kg', 12.0, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Brush-on waterproofing (sürme esaslı)
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('su_yalitim_surme', 'scope3', 'global', 'kg', 'kg', 1.80, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Map activities to the latest factors for the updated categories
+insert into activity_factors(activity_id, factor_id)
+select a.id, f.id
+from activities a
+join emission_factors f on f.category = a.category and f.region = 'global'
+where a.category in ('ekskavator_saat','dozer_loader_saat','dolgu_stabilize','su_yalitim_surme')
+  and f.valid_from = (
+    select max(valid_from) from emission_factors f2 where f2.category = f.category and f2.region = f.region
+  )
+on conflict do nothing;
+
+
+-- 041_entries_insert_policy.sql
+-- Allow project editors/owners to INSERT into entries via proper WITH CHECK
+
+-- Dedicated INSERT policy (USING is ignored for INSERT; WITH CHECK is required)
+drop policy if exists entries_insert on entries;
+create policy entries_insert on entries
+  for insert
+  with check (
+    exists (
+      select 1 from project_members pm
+      where pm.project_id = entries.project_id
+        and pm.user_id = auth.uid()
+        and pm.role in ('owner','editor')
+    )
+  );
+
+-- Optional: ensure UPDATE also has WITH CHECK (so updates don't get blocked)
+drop policy if exists entries_update on entries;
+create policy entries_update on entries
+  for update
+  using (
+    exists (
+      select 1 from project_members pm
+      where pm.project_id = entries.project_id
+        and pm.user_id = auth.uid()
+        and pm.role in ('owner','editor')
+    )
+  )
+  with check (
+    exists (
+      select 1 from project_members pm
+      where pm.project_id = entries.project_id
+        and pm.user_id = auth.uid()
+        and pm.role in ('owner','editor')
+    )
+  );
+
+
+-- 042_project_members_emails.sql
+-- Return project members along with their emails (SECURITY DEFINER)
+-- Only callable by users who are already members of the project
+
+create or replace function get_project_members(
+  p_project uuid
+) returns table (
+  user_id uuid,
+  role text,
+  email text
+)
+language sql
+security definer
+as $$
+  select pm.user_id, pm.role, u.email
+  from project_members pm
+  join auth.users u on u.id = pm.user_id
+  where pm.project_id = p_project
+    and exists (
+      select 1 from project_members x
+      where x.project_id = p_project and x.user_id = auth.uid()
+    );
+$$;
+
+revoke all on function get_project_members(uuid) from public;
+grant execute on function get_project_members(uuid) to authenticated;
+
+
+-- 043_entries_create_privileged.sql
+-- Privileged insert for entries, with explicit membership check
+-- Bypasses RLS safely via SECURITY DEFINER
+
+create or replace function create_entry_privileged(
+  p_project_id uuid,
+  p_user_id uuid,
+  p_type text,
+  p_date date,
+  p_amount numeric,
+  p_unit text,
+  p_scope text,
+  p_category text,
+  p_activity_id uuid,
+  p_notes text,
+  p_co2e_value numeric,
+  p_co2e_unit text
+) returns uuid
+language plpgsql
+security definer
+as $$
+declare
+  v_allowed boolean;
+  v_id uuid;
+begin
+  -- Ensure caller is member with owner/editor role
+  select exists(
+    select 1 from project_members pm
+    where pm.project_id = p_project_id
+      and pm.user_id = p_user_id
+      and pm.role in ('owner','editor')
+  ) into v_allowed;
+
+  if not v_allowed then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+
+  insert into entries(
+    project_id, type, date, amount, unit, scope, category,
+    activity_id, notes, created_by, co2e_value, co2e_unit
+  ) values (
+    p_project_id, p_type, p_date, p_amount, p_unit, p_scope, p_category,
+    p_activity_id, p_notes, p_user_id, p_co2e_value, p_co2e_unit
+  ) returning id into v_id;
+
+  return v_id;
+end;$$;
+
+revoke all on function create_entry_privileged(
+  uuid, uuid, text, date, numeric, text, text, text, uuid, text, numeric, text
+) from public;
+grant execute on function create_entry_privileged(
+  uuid, uuid, text, date, numeric, text, text, text, uuid, text, numeric, text
+) to authenticated;
+
+
+-- 044_entries_update_delete_privileged.sql
+-- Privileged functions for updating notes and deleting entries with membership check
+create or replace function update_entry_notes_privileged(
+  p_user_id uuid,
+  p_entry_id uuid,
+  p_notes text
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- ensure user is a member of the project owning the entry
+  perform 1
+  from entries e
+  join project_members m on m.project_id = e.project_id and m.user_id = p_user_id and m.role in ('owner','editor')
+  where e.id = p_entry_id;
+  if not found then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+
+  update entries
+  set notes = p_notes
+  where id = p_entry_id;
+end;
+$$;
+
+create or replace function delete_entry_privileged(
+  p_user_id uuid,
+  p_entry_id uuid
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  -- ensure user is a member of the project owning the entry
+  perform 1
+  from entries e
+  join project_members m on m.project_id = e.project_id and m.user_id = p_user_id and m.role in ('owner','editor')
+  where e.id = p_entry_id;
+  if not found then
+    raise exception 'not allowed' using errcode = '42501';
+  end if;
+
+  delete from entries where id = p_entry_id;
+end;
+$$;
+
+-- Lock down and grant execute explicitly
+revoke all on function update_entry_notes_privileged(uuid, uuid, text) from public;
+grant execute on function update_entry_notes_privileged(uuid, uuid, text) to authenticated;
+
+revoke all on function delete_entry_privileged(uuid, uuid) from public;
+grant execute on function delete_entry_privileged(uuid, uuid) to authenticated;
+
+
+-- 045_daily_log_sections_rls_with_check.sql
+-- Explicit WITH CHECK policies for INSERT/UPDATE on daily log sections
+-- This complements existing "for all using" policies by ensuring new rows pass membership checks.
+
+-- Manpower
+drop policy if exists dl_manpower_insert on daily_log_manpower;
+create policy dl_manpower_insert on daily_log_manpower for insert with check (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_manpower.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+);
+
+drop policy if exists dl_manpower_update on daily_log_manpower;
+create policy dl_manpower_update on daily_log_manpower for update using (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_manpower.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+) with check (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_manpower.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+);
+
+-- Equipment
+drop policy if exists dl_equipment_insert on daily_log_equipment;
+create policy dl_equipment_insert on daily_log_equipment for insert with check (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_equipment.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+);
+
+drop policy if exists dl_equipment_update on daily_log_equipment;
+create policy dl_equipment_update on daily_log_equipment for update using (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_equipment.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+) with check (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_equipment.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+);
+
+-- Materials
+drop policy if exists dl_materials_insert on daily_log_materials;
+create policy dl_materials_insert on daily_log_materials for insert with check (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_materials.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+);
+
+drop policy if exists dl_materials_update on daily_log_materials;
+create policy dl_materials_update on daily_log_materials for update using (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_materials.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+) with check (
+  exists(
+    select 1 from daily_logs dl
+    join project_members pm on pm.project_id = dl.project_id
+    where dl.id = daily_log_materials.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+);
