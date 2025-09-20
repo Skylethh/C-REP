@@ -25,8 +25,8 @@ const nextConfig: NextConfig = {
               const supabaseOrigin = (() => {
                 try { return new URL(supabase).origin; } catch { return ''; }
               })();
-              // In dev, Next injects some inline scripts; allow 'unsafe-inline' to avoid CSP blocks
-              const scriptSrc = isDev ? "'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'" : "'self'";
+              // Allow inline & wasm eval also in prod to avoid blocking Next boot scripts in absence of nonces
+              const scriptSrc = "'self' 'unsafe-inline' 'wasm-unsafe-eval'";
               const connectSrc = ["'self'", 'https:', 'ws:', 'wss:', supabaseOrigin].filter(Boolean).join(' ');
               return [
                 "default-src 'self'",
@@ -59,6 +59,10 @@ export default withSentryConfig(nextConfig, {
 
   // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
+  sourcemaps: {
+    // Upload sourcemaps (if SENTRY_AUTH_TOKEN is provided in CI) and remove them from build output
+    deleteSourcemapsAfterUpload: true,
+  },
 
   // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
   // This can increase your server load as well as your hosting bill.
