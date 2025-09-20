@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/server';
 
-export const dynamic = 'force-static';
+export const dynamic = 'force-dynamic';
 
-export default async function PrintPage({ params }: { params: Promise<{ id: string }> }) {
-  const p = await params;
+export default async function PrintPage({ params }: { params: { id: string } }) {
+  const p = params;
   const supabase = await createClient();
   const { data: project } = await supabase
     .from('projects')
@@ -94,13 +94,6 @@ export default async function PrintPage({ params }: { params: Promise<{ id: stri
         {org?.name && <p className="mt-1">{org.name}</p>}
       </div>
 
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white !important; }
-          * { color-adjust: exact !important; }
-        }
-      `}</style>
     </div>
   );
 }
