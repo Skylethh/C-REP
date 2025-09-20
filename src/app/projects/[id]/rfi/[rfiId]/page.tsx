@@ -40,10 +40,13 @@ export default async function RfiDetailPage(props: { params: Promise<{ id: strin
     'use server';
     const supabase = await createClient();
     const status = String(formData.get('status') || rfi.status);
-    const answer_text = String(formData.get('answer_text') || '');
+    const patch: any = { status, answered_at: status === 'answered' ? new Date().toISOString() : rfi.answered_at };
+    if (formData.has('answer_text')) {
+      patch.answer_text = String(formData.get('answer_text') || '');
+    }
     const { error } = await supabase
       .from('rfi')
-      .update({ status, answer_text, answered_at: status === 'answered' ? new Date().toISOString() : rfi.answered_at })
+      .update(patch)
       .eq('id', rfiId)
       .eq('project_id', id);
     if (error) redirect((`/projects/${id}/rfi/${rfiId}?error=${encodeURIComponent(error.message)}` as unknown) as Route);
@@ -185,11 +188,24 @@ export default async function RfiDetailPage(props: { params: Promise<{ id: strin
               </div>
               
               <div className="flex flex-col items-end gap-3">
-                <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium ${currentStatus.badge}`}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d={currentStatus.icon} />
-                  </svg>
-                  <span>{currentStatus.label}</span>
+                <div className="flex items-center gap-3">
+                  <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium ${currentStatus.badge}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d={currentStatus.icon} />
+                    </svg>
+                    <span>{currentStatus.label}</span>
+                  </div>
+                  {/* Compact status update (creator or editor) */}
+                  {(user.id === rfi.created_by || isEditor) && (
+                    <form action={update} className="inline-flex items-center gap-2">
+                      <select name="status" defaultValue={rfi.status} className="form-input h-9">
+                        <option value="open">Açık</option>
+                        <option value="answered">Cevaplandı</option>
+                        <option value="closed">Kapalı</option>
+                      </select>
+                      <button type="submit" className="btn-secondary h-9 px-3 text-sm">Güncelle</button>
+                    </form>
+                  )}
                 </div>
                 {rfi.due_date && (
                   <div className="text-sm text-white/60">
@@ -263,7 +279,7 @@ export default async function RfiDetailPage(props: { params: Promise<{ id: strin
               </div>
             </div>
 
-            {/* Response Form Card */}
+            {/* Responses thread (single, with reply composer) */}
             <div className="glass-card">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 rounded-lg bg-gradient-to-br from-ocean-500/20 to-leaf-500/20 border border-white/10">
@@ -272,67 +288,27 @@ export default async function RfiDetailPage(props: { params: Promise<{ id: strin
                     <path d="M8 10h8M8 14h6" />
                   </svg>
                 </div>
-                <h2 className="text-xl font-semibold text-white/90">Cevap & Durum Güncelleme</h2>
-              </div>
-              
-              <form action={update} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="form-label">Durum Güncelle</label>
-                    <select name="status" defaultValue={rfi.status} className="form-input w-full">
-                      <option value="open">Açık</option>
-                      <option value="answered">Cevaplandı</option>
-                      <option value="closed">Kapalı</option>
-                    </select>
-                  </div>
-                  <div className="flex items-end">
-                    <div className="text-xs text-white/50 bg-leaf-500/10 border border-leaf-500/20 rounded-lg p-3 w-full">
-                      Durum "Cevaplandı" seçildiğinde, cevaplama tarihi otomatik olarak kaydedilir.
-                    </div>
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="form-label">Cevap Metni</label>
-                  <textarea 
-                    name="answer_text" 
-                    defaultValue={rfi.answer_text || ''} 
-                    placeholder="RFI'ya detaylı cevabınızı buraya yazın..." 
-                    className="form-input w-full min-h-[160px] resize-y"
-                  />
-                </div>
-                
-                <div className="flex justify-end pt-4 border-t border-white/10">
-                  <button type="submit" className="btn-primary inline-flex items-center gap-2 px-6 py-3">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M22 2L11 13" />
-                      <path d="M22 2l-7 20-4-9-9-4 20-7Z" />
-                    </svg>
-                    Cevabı Kaydet
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* Responses thread (rfi_responses) */}
-            <div className="glass-card">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 rounded-lg bg-gradient-to-br from-ocean-500/20 to-leaf-500/20 border border-white/10">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-ocean-400">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                  </svg>
-                </div>
                 <h2 className="text-xl font-semibold text-white/90">Cevaplar</h2>
               </div>
 
+              {/* Composer on top (disabled when closed) */}
               <form action={postResponse} className="space-y-3 mb-6">
                 <label className="form-label">Yeni Cevap</label>
-                <textarea name="body" placeholder="RFI yanıtınızı yazın..." className="form-input w-full min-h-[100px]" />
-                <div className="flex justify-end">
-                  <button type="submit" className="btn-secondary px-4 py-2">Cevap Ekle</button>
+                <textarea 
+                  name="body" 
+                  placeholder={rfi.status==='closed' ? 'RFI kapalı, yeni cevap eklenemez' : 'RFI yanıtınızı yazın...'} 
+                  className="form-input w-full min-h-[100px]"
+                  disabled={rfi.status==='closed'}
+                />
+                <div className="flex justify-between text-xs text-white/60">
+                  <div className="bg-white/5 border border-white/10 rounded px-2 py-1">
+                    Durum "Açık" ise cevap eklemek otomatik olarak "Cevaplandı" yapar.
+                  </div>
+                  <button type="submit" className="btn-secondary px-4 py-2 disabled:opacity-50" disabled={rfi.status==='closed'}>Cevap Ekle</button>
                 </div>
               </form>
 
+              {/* Existing replies */}
               <div className="space-y-4">
                 {responses.length === 0 && (
                   <div className="text-sm text-white/60">Henüz cevap yok.</div>
@@ -372,6 +348,8 @@ export default async function RfiDetailPage(props: { params: Promise<{ id: strin
                 })}
               </div>
             </div>
+
+            
           </div>
 
           {/* Right Column - Photos */}

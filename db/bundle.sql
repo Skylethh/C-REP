@@ -3235,3 +3235,13 @@ create policy rfi_responses_modify on rfi_responses for all using (
 
 -- Helpful indexes
 create index if not exists idx_rfi_responses_rfi_created_at on rfi_responses(rfi_id, created_at desc);
+
+
+-- 058_daily_log_materials_entry_fk.sql
+-- 058_daily_log_materials_entry_fk.sql
+-- Link daily_log_materials to entries for traceability
+
+alter table if exists daily_log_materials
+  add column if not exists entry_id uuid references entries(id) on delete set null;
+
+create index if not exists idx_dl_materials_entry on daily_log_materials(entry_id);

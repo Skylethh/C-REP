@@ -61,8 +61,8 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
 
   const { data: recentEntries } = await supabase
     .from('entries')
-    .select('id, type, amount, unit, date, co2e_value, co2e_unit, project_id, projects(name), activities(name, key)')
-    .order('date', { ascending: false })
+    .select('id, type, amount, unit, date, created_at, co2e_value, co2e_unit, project_id, projects(name), activities(name, key)')
+    .order('created_at', { ascending: false })
     .limit(4);
 
   if (error) {
@@ -158,9 +158,43 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
           icon={<Folder size={18} />}
           className="lg:col-span-2"
           footer={
-            <div className="flex justify-between items-center">
+            <div className="flex justify-between items-center w-full">
               <span className="text-xs text-white/60">{projectCount} proje</span>
               <div className="flex items-center gap-2">
+                {/* Pagination controls inline when needed */}
+                {projectCount > limit && (
+                  <div className="hidden md:inline-flex items-center gap-2 rounded-md bg-white/5 border border-white/10 p-1 mr-2">
+                    {page > 1 ? (
+                      <Link href={`?page=${page-1}&limit=${limit}&q=${encodeURIComponent(q)}&sort=${sort}`} className="p-2 rounded-md hover:bg-white/10 transition-all text-white/80 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 18l-6-6 6-6"/>
+                        </svg>
+                      </Link>
+                    ) : (
+                      <span className="p-2 text-white/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M15 18l-6-6 6-6"/>
+                        </svg>
+                      </span>
+                    )}
+                    <span className="px-3 py-1 text-sm font-medium text-white/80">
+                      {page} / {Math.ceil(projectCount / limit)}
+                    </span>
+                    {page * limit < projectCount ? (
+                      <Link href={`?page=${page+1}&limit=${limit}&q=${encodeURIComponent(q)}&sort=${sort}`} className="p-2 rounded-md hover:bg-white/10 transition-all text-white/80 hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                      </Link>
+                    ) : (
+                      <span className="p-2 text-white/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 18l6-6-6-6"/>
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+                )}
                 <Link href={"/projects" as any} className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-md text-sm text-white/80 hover:text-white transition-colors">
                   Tümünü Gör
                 </Link>
@@ -221,45 +255,6 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
           )}
         </DashboardCard>
 
-        {/* Projects pagination */}
-        {projectCount > limit && (
-          <div className="lg:col-span-2 flex items-center justify-center mt-2">
-            <div className="inline-flex items-center gap-2 rounded-md bg-white/5 border border-white/10 p-1">
-              {page > 1 ? (
-                <Link href={`?page=${page-1}&limit=${limit}&q=${encodeURIComponent(q)}&sort=${sort}`} className="p-2 rounded-md hover:bg-white/10 transition-all text-white/80 hover:text-white">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M15 18l-6-6 6-6"/>
-                  </svg>
-                </Link>
-              ) : (
-                <span className="p-2 text-white/30">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M15 18l-6-6 6-6"/>
-                  </svg>
-                </span>
-              )}
-              
-              <span className="px-3 py-1 text-sm font-medium text-white/80">
-                {page} / {Math.ceil(projectCount / limit)}
-              </span>
-              
-              {page * limit < projectCount ? (
-                <Link href={`?page=${page+1}&limit=${limit}&q=${encodeURIComponent(q)}&sort=${sort}`} className="p-2 rounded-md hover:bg-white/10 transition-all text-white/80 hover:text-white">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 18l6-6-6-6"/>
-                  </svg>
-                </Link>
-              ) : (
-                <span className="p-2 text-white/30">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 18l6-6-6-6"/>
-                  </svg>
-                </span>
-              )}
-            </div>
-          </div>
-        )}
-        
         {/* Recent Activity */}
         <DashboardCard 
           title={dict.cards.recentActivities}

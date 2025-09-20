@@ -22,7 +22,7 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "incremental": true,
+  "incremental": false,
     "plugins": [
       {
         "name": "next"

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { EvidenceList } from '@/components/EvidenceList';
 import { getMessages } from '@/i18n';
 import { BarChart2, Layers, ChevronLeft, Factory, Cloud, Zap, Truck, Package, HelpCircle, Eye, Trash2 } from 'lucide-react';
+import ToolsMenu from '@/components/ToolsMenu';
 import { deleteEntryAction } from '@/app/entries/actions';
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton';
 
@@ -96,7 +97,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-900/80 to-ocean-900/80 border border-white/10 shadow-lg">
         <div className="absolute inset-0 bg-gradient-to-br from-leaf-500/10 to-ocean-500/10 backdrop-blur-sm"></div>
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 opacity-30"></div>
-        
+
         <div className="relative p-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div>
@@ -112,56 +113,38 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
               <h1 className="text-3xl font-bold mb-2 highlight-text">{project.name}</h1>
               <p className="text-white/70 max-w-2xl">{project.description || 'Bu proje için henüz bir açıklama girilmemiş.'}</p>
             </div>
-            
+
             <div className="flex items-center gap-3">
-              <Link 
-                href={`/projects/${project.id}/entries/new`}
+              {/* Primary CTA: Günlükler */}
+              <Link
+                href={`/projects/${project.id}/daily-logs`}
                 className="bg-gradient-to-r from-leaf-600/90 to-ocean-600/90 hover:from-leaf-500/90 hover:to-ocean-500/90 px-4 py-2.5 rounded-lg text-white transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 5v14M5 12h14"/>
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
                 </svg>
-                <span>Yeni Kayıt Ekle</span>
-              </Link>
-              <Link 
-                href={`/projects/${project.id}/members`}
-                className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
-              >
-                Üyeler
-              </Link>
-              
-              <Link 
-                href={`/projects/${project.id}/export`}
-                className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200 flex items-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
-                <span>CSV İndir</span>
+                <span>Günlükler</span>
               </Link>
 
-              <Link 
-                href={`/projects/${project.id}/daily-logs`}
+              {/* Secondary: Yeni Kayıt + RFI remain quick actions */}
+              <Link
+                href={`/projects/${project.id}/entries/new`}
                 className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
               >
-                Günlükler
+                Yeni Kayıt Ekle
               </Link>
-
-              <Link 
+              <Link
                 href={`/projects/${project.id}/rfi`}
                 className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
               >
                 RFI
               </Link>
 
-              <Link 
-                href={`/projects/${project.id}/documents`}
-                className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
-              >
-                Dokümanlar
-              </Link>
+              {/* ToolsMenu groups ancillary actions */}
+              <ToolsMenu projectId={project.id} />
             </div>
           </div>
         </div>

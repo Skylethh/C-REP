@@ -9,6 +9,8 @@ import { DailyLogPhotoList } from '@/components/DailyLogPhotoList';
 import { DailyLogManpowerSection } from '@/components/DailyLogManpowerSection';
 import { DailyLogEquipmentSection } from '@/components/DailyLogEquipmentSection';
 import { DailyLogMaterialsSection } from '@/components/DailyLogMaterialsSection';
+import MaterialsWithDialog from '@/components/MaterialsWithDialog';
+import { addActivityToDailyLog } from '@/app/actions/logs';
 
 export default async function DailyLogDetailPage({ params }: any) {
   const { id, logId } = params;
@@ -85,6 +87,12 @@ export default async function DailyLogDetailPage({ params }: any) {
   // Fetch activities for material select
   const { data: activities } = await supabase.from('activities').select('id, name, default_unit, units').order('name');
 
+  // Bind server action to this specific logId to avoid serializing params in client
+  async function addMaterial(formData: FormData) {
+    'use server';
+    return await addActivityToDailyLog(logId, formData);
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -95,8 +103,11 @@ export default async function DailyLogDetailPage({ params }: any) {
         <Link href={( `/projects/${id}/daily-logs` as unknown) as Route} className="px-3 py-1.5 rounded border border-white/10 bg-white/10">← Listeye Dön</Link>
       </div>
 
-      {/* Weather - quick set without full page reload */}
-      <WeatherQuickSet current={log.weather} onSet={setWeather} onSuggest={setSuggestedWeather} />
+  {/* Materials first */}
+  <MaterialsWithDialog projectId={id} logId={logId} activities={(activities as any) || []} initial={materials as any} dateDefault={log.date} action={addMaterial} />
+
+  {/* Weather - quick set without full page reload */}
+  <WeatherQuickSet current={log.weather} onSet={setWeather} onSuggest={setSuggestedWeather} />
 
       {/* Work Summary */}
       <div className="glass rounded border border-white/10 p-6">
@@ -142,8 +153,6 @@ export default async function DailyLogDetailPage({ params }: any) {
       {/* Equipment */}
       <DailyLogEquipmentSection logId={logId} initial={equipment as any} />
 
-      {/* Materials */}
-      <DailyLogMaterialsSection logId={logId} activities={(activities as any) || []} initial={materials as any} />
 
       {/* Photos */}
       <details className="glass rounded-lg border border-white/20 p-4 group hover:border-indigo-400/40 transition-all duration-200">
