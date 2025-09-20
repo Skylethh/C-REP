@@ -19,6 +19,7 @@ export const messages = {
       totalProjects: 'Toplam Projeler',
       last30Emissions: 'Son 30 Gün Emisyonu',
       recentEntries: 'Son Kayıtlar',
+      totalEntries: 'Toplam Kayıtlar',
       activeCompany: 'Aktif Şirket'
     },
     cards: {
@@ -63,6 +64,7 @@ export const messages = {
       totalProjects: 'Total Projects',
       last30Emissions: 'Last 30 Days Emissions',
       recentEntries: 'Recent Entries',
+      totalEntries: 'Total Entries',
       activeCompany: 'Active Company'
     },
     cards: {

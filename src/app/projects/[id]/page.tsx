@@ -55,7 +55,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
   const [{ data: project }, { data: entries, count }, { data: evidence }, { data: totals }] = await Promise.all([
     supabase.from('projects').select('id, name, description').eq('id', p.id).maybeSingle(),
     entriesQuery,
-    supabase.from('evidence_files').select('id, file_path, mime, size, created_at, entry_id', { count: 'exact' }).eq('project_id', p.id).order('created_at', { ascending: false }).range(from, to),
+    supabase.from('evidence_files').select('id, file_path, mime, size, created_at, entry_id, original_filename', { count: 'exact' }).eq('project_id', p.id).order('created_at', { ascending: false }).range(from, to),
     totalsQuery
   ]);
 
@@ -500,7 +500,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                             </div>
                             <div className="flex items-center gap-1">
                               <Link
-                                href={`/entries/${e.id}` as any}
+                                href={`/entries/${e.id}?from=project` as any}
                                 className="px-2 py-1 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-white/80 hover:text-white transition-colors shadow-sm"
                                 title="Görüntüle"
                               >

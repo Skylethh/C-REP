@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import Link from 'next/link';
 
-export default async function NewRfiPage({ params }: { params: { id: string } }) {
-  const { id } = params;
+export default async function NewRfiPage(props: { params: Promise<{ id: string }> }) {
+  const { id } = await props.params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect((`/login?error=login_required` as unknown) as Route);
@@ -12,26 +12,32 @@ export default async function NewRfiPage({ params }: { params: { id: string } })
   async function create(formData: FormData) {
     'use server';
     const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
     const title = String(formData.get('title') || '').trim();
-    const description = String(formData.get('description') || '');
-    const to_role = String(formData.get('to_role') || '').trim() || null;
+    const description = String(formData.get('description') || '').trim();
+    const to_role = (String(formData.get('to_role') || '').trim() || null) as string | null;
     const due_date_raw = String(formData.get('due_date') || '').trim();
     const due_date = due_date_raw ? due_date_raw : null;
-    const from_party = String(formData.get('from_party') || '').trim() || 'Biz';
-    const reference_text = String(formData.get('reference_text') || '').trim() || null;
-  if (!title) redirect((`/projects/${id}/rfi/new?error=missing_title` as unknown) as Route);
-    const { error, data } = await supabase.rpc('create_rfi', {
-      p_project: id,
-      p_actor: user!.id,
-      p_title: title,
-      p_description: description,
-      p_to_role: to_role,
-      p_due_date: due_date,
-      p_from_party: from_party,
-      p_reference_text: reference_text,
-    });
-  if (error) redirect((`/projects/${id}/rfi/new?error=${encodeURIComponent(error.message)}` as unknown) as Route);
-  redirect((`/projects/${id}/rfi` as unknown) as Route);
+
+    if (!user) redirect((`/login?error=login_required` as unknown) as Route);
+    if (!title) redirect((`/projects/${id}/rfi/new?error=missing_title` as unknown) as Route);
+
+    const { data, error } = await supabase
+      .from('rfi')
+      .insert({
+        project_id: id,
+        title,
+        description: description || null,
+        status: 'open',
+        to_role,
+        due_date,
+        created_by: user.id,
+      })
+      .select('id')
+      .maybeSingle();
+
+    if (error || !data) redirect((`/projects/${id}/rfi/new?error=${encodeURIComponent(error?.message || 'insert_failed')}` as unknown) as Route);
+    redirect((`/projects/${id}/rfi/${data.id}` as unknown) as Route);
   }
 
   return (
@@ -101,21 +107,7 @@ export default async function NewRfiPage({ params }: { params: { id: string } })
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="form-label flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11l3 3L22 4"></path>
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
-              </svg>
-              Proje Referansları
-            </label>
-            <input 
-              type="text" 
-              name="reference_text" 
-              placeholder="A-101 Paftası, 3. Kat, Çizim No: X-Y-Z..." 
-              className="form-input w-full" 
-            />
-          </div>
+          {/* Proje referansları alanı ileride tabloya eklenecekse aktifleştirilebilir */}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
@@ -148,24 +140,7 @@ export default async function NewRfiPage({ params }: { params: { id: string } })
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="form-label flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-              Soran Taraf
-            </label>
-            <input 
-              type="text" 
-              name="from_party" 
-              placeholder="Biz, X Taşeronu, Y Müteahhidi..." 
-              className="form-input w-full" 
-              defaultValue="Biz" 
-            />
-          </div>
+          {/* Soran taraf alanı ileride tabloya eklenecekse aktifleştirilebilir */}
 
           <div className="flex flex-col sm:flex-row justify-end items-stretch sm:items-center gap-3 pt-6 border-t border-white/10">
             <button type="submit" className="btn-primary px-6 py-2.5 rounded-lg flex items-center gap-2 justify-center">

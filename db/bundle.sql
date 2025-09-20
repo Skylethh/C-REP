@@ -2413,6 +2413,38 @@ revoke all on function delete_entry_privileged(uuid, uuid) from public;
 grant execute on function delete_entry_privileged(uuid, uuid) to authenticated;
 
 
+-- 044_fix_storage_path_extraction.sql
+-- Fix extract_project_from_path to handle both evidence and project-files paths
+
+create or replace function extract_project_from_path(p_name text)
+returns uuid language plpgsql immutable as $$
+declare
+  part text;
+  v_uuid uuid;
+begin
+  -- Handle different path patterns:
+  -- evidence/{project_uuid}/file.ext (legacy)
+  -- project-files/{project_uuid}/... (new pattern)
+  
+  if p_name ~ '^evidence/' then
+    -- Legacy pattern: evidence/{project_uuid}/...
+    part := split_part(p_name, '/', 2);
+  elsif p_name ~ '^project-files/' then
+    -- New pattern: project-files/{project_uuid}/...
+    part := split_part(p_name, '/', 2);
+  else
+    -- Try second segment as fallback
+    part := split_part(p_name, '/', 2);
+  end if;
+  
+  begin
+    v_uuid := part::uuid;
+    return v_uuid;
+  exception when others then
+    return null;
+  end;
+end;$$;
+
 -- 045_daily_log_sections_rls_with_check.sql
 -- Explicit WITH CHECK policies for INSERT/UPDATE on daily log sections
 -- This complements existing "for all using" policies by ensuring new rows pass membership checks.
@@ -2491,3 +2523,715 @@ create policy dl_materials_update on daily_log_materials for update using (
     where dl.id = daily_log_materials.log_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
   )
 );
+
+
+-- 046_project_files_rfi_member_insert.sql
+-- Allow project members to upload files specifically under RFI paths
+-- Bucket: project-files
+-- Path pattern: .../rfi/... (works whether name includes 'project-files/' prefix or not)
+
+drop policy if exists project_files_insert_rfi on storage.objects;
+create policy project_files_insert_rfi on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'project-files'
+  and position('/rfi/' in name) > 0
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- Note: Existing 'project_files_insert' policy (editor-only) remains for other paths.
+
+-- 047_storage_buckets_and_daily_log_policies.sql
+-- Ensure required storage buckets exist and adjust policies for daily logs
+-- Context: Users see "Bucket not found" when uploading photos (RFI, Daily Logs, etc.)
+-- This migration creates missing buckets and allows project members to upload/delete
+-- photos under project-files/{project_id}/daily-logs/...
+
+-- 1) Create buckets if they don't exist (fallback to direct insert if create_bucket is unavailable)
+do $$
+begin
+  if not exists (select 1 from storage.buckets where id = 'evidence') then
+    insert into storage.buckets (id, name, public)
+    values ('evidence', 'evidence', false)
+    on conflict (id) do nothing;
+  end if;
+
+  if not exists (select 1 from storage.buckets where id = 'project-files') then
+    insert into storage.buckets (id, name, public)
+    values ('project-files', 'project-files', false)
+    on conflict (id) do nothing;
+  end if;
+end$$;
+
+-- 2) Policies for project-files bucket:
+-- Existing baseline policies are in 025_storage_project_files.sql (read for members, insert/delete for editors)
+-- We additionally allow MEMBERS to insert/delete under daily-logs path specifically.
+
+-- Allow project members to insert files under .../daily-logs/...
+drop policy if exists project_files_insert_daily_logs on storage.objects;
+create policy project_files_insert_daily_logs on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'project-files'
+  and position('/daily-logs/' in name) > 0
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- Allow project members to delete files under .../daily-logs/...
+drop policy if exists project_files_delete_daily_logs on storage.objects;
+create policy project_files_delete_daily_logs on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and position('/daily-logs/' in name) > 0
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- Note: RFI uploads for members are handled in 046_project_files_rfi_member_insert.sql
+--       Read access for members already exists in 025_storage_project_files.sql
+--       Add delete permission for RFI photos to project members as well
+
+drop policy if exists project_files_delete_rfi on storage.objects;
+create policy project_files_delete_rfi on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and position('/rfi/' in name) > 0
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+
+-- 048_evidence_member_write.sql
+-- Allow project members to upload and delete files in the 'evidence' bucket
+-- This replaces the restrictive editor-only policies from 004_storage_policies.sql
+
+-- First, drop the old restrictive policies that limited to editors only
+drop policy if exists evidence_insert on storage.objects;
+drop policy if exists evidence_delete on storage.objects;
+
+-- Insert policy: members may insert into evidence/{project_id}/...
+drop policy if exists evidence_insert_members on storage.objects;
+create policy evidence_insert on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'evidence'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- Delete policy: members may delete their project's evidence files
+drop policy if exists evidence_delete_members on storage.objects;
+create policy evidence_delete on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'evidence'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+
+-- 049_project_files_member_write.sql
+-- Fix project-files bucket policies to allow members to upload/delete 
+-- This replaces the restrictive editor-only policies from 025_storage_project_files.sql
+
+-- First, drop the old restrictive policies that limited to editors only
+drop policy if exists project_files_insert on storage.objects;
+drop policy if exists project_files_delete on storage.objects;
+
+-- Insert policy: members may insert into project-files/{project_id}/...
+create policy project_files_insert on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'project-files'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- Delete policy: members may delete their project's files
+create policy project_files_delete on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- 050_clean_storage_policies.sql
+-- Storage politikalarını temizle ve yeniden kur
+-- Bu script mevcut çakışan politikaları temizleyip doğru olanları kuracak
+
+-- 1) Tüm storage politikalarını temizle
+drop policy if exists evidence_read on storage.objects;
+drop policy if exists evidence_insert on storage.objects;
+drop policy if exists evidence_delete on storage.objects;
+drop policy if exists evidence_insert_members on storage.objects;
+drop policy if exists evidence_delete_members on storage.objects;
+
+drop policy if exists project_files_read on storage.objects;
+drop policy if exists project_files_insert on storage.objects;
+drop policy if exists project_files_delete on storage.objects;
+drop policy if exists project_files_insert_daily_logs on storage.objects;
+drop policy if exists project_files_delete_daily_logs on storage.objects;
+drop policy if exists project_files_insert_rfi on storage.objects;
+drop policy if exists project_files_delete_rfi on storage.objects;
+drop policy if exists project_files_insert_rfi_member_insert on storage.objects;
+
+-- 2) Bucket'ları oluştur (eğer yoksa)
+do $$
+begin
+  if not exists (select 1 from storage.buckets where id = 'evidence') then
+    insert into storage.buckets (id, name, public)
+    values ('evidence', 'evidence', false)
+    on conflict (id) do nothing;
+  end if;
+
+  if not exists (select 1 from storage.buckets where id = 'project-files') then
+    insert into storage.buckets (id, name, public)
+    values ('project-files', 'project-files', false)
+    on conflict (id) do nothing;
+  end if;
+end$$;
+
+-- 3) Evidence bucket için temiz politikalar
+create policy evidence_read on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'evidence'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+create policy evidence_insert on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'evidence'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+create policy evidence_delete on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'evidence'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- 4) Project-files bucket için temiz politikalar
+create policy project_files_read on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+create policy project_files_insert on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'project-files'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+create policy project_files_delete on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- 051_complete_database_cleanup.sql
+-- KAPSAMLI VERİTABANI TEMİZLEME VE YENİDEN KURMA SCRİPTİ
+-- Bu script tüm storage, RLS ve ilgili yapıları temizleyip sıfırdan kurar
+-- Güvenli: Mevcut verileri silmez, sadece politika ve yapı çakışmalarını çözer
+
+-- =============================================================================
+-- 0. HELPER FONKSİYONLARI (ÖNCE OLUŞTUR)
+-- =============================================================================
+
+-- UUID çıkarma yardımcıları: daha sağlam bir yaklaşım
+-- 1) İlk geçen UUID'i çıkaran fonksiyon
+create or replace function extract_first_uuid(p_name text)
+returns uuid language plpgsql immutable as $$
+declare
+  seg text;
+  v uuid;
+begin
+  -- Try each path segment; return the first that casts to uuid
+  foreach seg in array regexp_split_to_array(coalesce(p_name, ''), '/') loop
+    begin
+      v := seg::uuid;
+      return v;
+    exception when others then
+      -- not a uuid; continue scanning
+      continue;
+    end;
+  end loop;
+  return null;
+end;
+$$;
+
+-- 2) Geriye dönük uyumluluk için extract_project_from_path, extract_first_uuid'i kullanır
+create or replace function extract_project_from_path(p_name text)
+returns uuid language sql immutable as $$
+  select extract_first_uuid(p_name)
+$$;
+
+-- =============================================================================
+-- 1. TÜM STORAGE POLİTİKALARINI TEMİZLE
+-- =============================================================================
+
+-- Evidence bucket politikaları
+drop policy if exists evidence_read on storage.objects;
+drop policy if exists evidence_insert on storage.objects;
+drop policy if exists evidence_delete on storage.objects;
+drop policy if exists evidence_insert_members on storage.objects;
+drop policy if exists evidence_delete_members on storage.objects;
+
+-- Project-files bucket politikaları (tüm varyasyonlar)
+drop policy if exists project_files_read on storage.objects;
+drop policy if exists project_files_insert on storage.objects;
+drop policy if exists project_files_delete on storage.objects;
+drop policy if exists project_files_insert_daily_logs on storage.objects;
+drop policy if exists project_files_delete_daily_logs on storage.objects;
+drop policy if exists project_files_insert_rfi on storage.objects;
+drop policy if exists project_files_delete_rfi on storage.objects;
+drop policy if exists project_files_rfi_member_insert on storage.objects;
+drop policy if exists project_files_insert_rfi_member_insert on storage.objects;
+
+-- Public bucket politikaları (eğer varsa)
+drop policy if exists public_read on storage.objects;
+drop policy if exists public_insert on storage.objects;
+drop policy if exists public_delete on storage.objects;
+
+-- Storage limitleri politikaları (010 migration'dan)
+drop policy if exists storage_size_limit on storage.objects;
+
+-- =============================================================================
+-- 2. STORAGE BUCKET'LARINI KONTROL ET VE OLUŞTUR
+-- =============================================================================
+
+do $$
+begin
+  -- Evidence bucket
+  if not exists (select 1 from storage.buckets where id = 'evidence') then
+    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    values ('evidence', 'evidence', false, 52428800, null)  -- 50MB limit
+    on conflict (id) do nothing;
+  else
+    -- Bucket varsa, sadece ayarları güncelle
+    update storage.buckets 
+    set public = false, file_size_limit = 52428800 
+    where id = 'evidence';
+  end if;
+
+  -- Project-files bucket
+  if not exists (select 1 from storage.buckets where id = 'project-files') then
+    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    values ('project-files', 'project-files', false, 52428800, null)  -- 50MB limit
+    on conflict (id) do nothing;
+  else
+    update storage.buckets 
+    set public = false, file_size_limit = 52428800 
+    where id = 'project-files';
+  end if;
+
+  -- Public bucket (logo'lar için, eğer gerekirse)
+  if not exists (select 1 from storage.buckets where id = 'public') then
+    insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+    values ('public', 'public', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])  -- 5MB, sadece resim
+    on conflict (id) do nothing;
+  end if;
+
+  raise notice 'Storage buckets kontrol edildi ve güncellendi.';
+end$$;
+
+-- =============================================================================
+-- 3. TEMİZ RLS POLİTİKALARI OLUŞTUR
+-- =============================================================================
+
+-- Evidence bucket politikaları
+create policy evidence_read on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'evidence'
+  and is_project_member(extract_first_uuid(name), auth.uid())
+);
+
+create policy evidence_insert on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'evidence'
+  and is_project_member(extract_first_uuid(name), auth.uid())
+);
+
+create policy evidence_delete on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'evidence'
+  and is_project_member(extract_first_uuid(name), auth.uid())
+);
+
+-- Project-files bucket politikaları
+create policy project_files_read on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and is_project_member(extract_first_uuid(name), auth.uid())
+);
+
+create policy project_files_insert on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'project-files'
+  and is_project_member(extract_first_uuid(name), auth.uid())
+);
+
+create policy project_files_delete on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and is_project_member(extract_first_uuid(name), auth.uid())
+);
+
+-- Public bucket politikaları (logo'lar için)
+create policy public_read on storage.objects
+for select
+to authenticated  -- Sadece authenticated kullanıcılar okuyabilir
+using (bucket_id = 'public');
+
+create policy public_insert on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'public'
+  and starts_with(name, 'org-')  -- Sadece org- ile başlayan dosyalar
+);
+
+-- 4-5. Ek kontrol ve rapor bölümleri kaldırıldı (bundle sade tutuldu)
+
+-- 052_evidence_files_member_insert.sql
+-- Allow project members to insert rows into evidence_files
+-- Existing policy evidence_modify requires editor/owner for ALL; this insert policy opens inserts to members.
+
+drop policy if exists evidence_files_insert on evidence_files;
+create policy evidence_files_insert on evidence_files
+for insert
+to authenticated
+with check (
+  is_project_member(evidence_files.project_id, auth.uid())
+);
+
+
+-- 053_audit_logs_insert_policy.sql
+-- Allow insert operations on audit_logs for authenticated users
+-- This policy is needed because audit triggers automatically insert records
+-- when other tables are modified (evidence_files, entries, project_members, etc.)
+
+drop policy if exists audit_logs_insert on audit_logs;
+create policy audit_logs_insert on audit_logs
+for insert
+to authenticated
+with check (
+  -- Allow insert if user is authenticated and the audit log is for a project
+  -- they are a member of, or if it's a system-generated log without project context
+  (metadata ? 'project_id') = false OR
+  exists (
+    select 1 from project_members pm
+    where pm.user_id = auth.uid()
+      and pm.project_id = (audit_logs.metadata->>'project_id')::uuid
+  )
+);
+
+-- 054_evidence_original_filename.sql
+-- Add original filename column to evidence_files table
+-- This will store the user-provided filename instead of just the hash-based path
+
+alter table evidence_files 
+add column if not exists original_filename text;
+
+-- Update existing records to extract original filename from mime or use a default
+update evidence_files 
+set original_filename = 
+  case 
+    when mime like 'image%' then 'resim.' || split_part(file_path, '.', -1)
+    when mime like '%pdf%' then 'dokuman.pdf'
+    else 'dosya.' || split_part(file_path, '.', -1)
+  end
+where original_filename is null;
+
+-- 055_daily_logs_photos_structure.sql
+-- Upgrade daily_logs.photos structure to include original filenames
+-- Convert from string[] to object[] with path and original_name fields
+
+-- Add migration to convert existing photos array to new structure
+-- This will preserve existing paths and generate reasonable names
+
+DO $$
+DECLARE
+    log_record RECORD;
+    photo_path TEXT;
+    new_photos JSONB;
+    photo_obj JSONB;
+    original_name TEXT;
+BEGIN
+    -- Loop through all daily_logs that have photos
+    FOR log_record IN 
+        SELECT id, photos 
+        FROM daily_logs 
+        WHERE photos IS NOT NULL 
+        AND jsonb_array_length(photos) > 0
+    LOOP
+        new_photos := '[]'::jsonb;
+        
+        -- Process each photo path in the array
+        FOR photo_path IN 
+            SELECT jsonb_array_elements_text(log_record.photos)
+        LOOP
+            -- Extract original filename from path or generate a reasonable one
+            original_name := split_part(photo_path, '/', -1);
+            
+            -- If it's just a hash.ext, make it more user-friendly
+            IF original_name ~ '^[a-f0-9]{64}\.' THEN
+                original_name := 'foto.' || split_part(original_name, '.', -1);
+            END IF;
+            
+            -- Create the new photo object
+            photo_obj := json_build_object(
+                'path', photo_path,
+                'original_name', original_name
+            )::jsonb;
+            
+            -- Add to the new photos array
+            new_photos := new_photos || jsonb_build_array(photo_obj);
+        END LOOP;
+        
+        -- Update the record with the new structure
+        UPDATE daily_logs 
+        SET photos = new_photos 
+        WHERE id = log_record.id;
+    END LOOP;
+END $$;
+
+-- 056_restrict_photo_deletes.sql
+-- Restrict deletes for Evidence, RFI photos, and Daily Log photos to creator or project editors
+-- Also add a helper to extract the second UUID from storage paths like:
+--   project-files/{project_uuid}/rfi/{rfi_uuid}/...
+--   project-files/{project_uuid}/daily-logs/{log_uuid}/...
+
+-- 1) Helper: extract the Nth UUID-like segment from a path; we expose a convenience for the 2nd
+create or replace function extract_second_uuid(p_name text)
+returns uuid language plpgsql immutable as $$
+declare
+  seg text;
+  i int := 1;
+  uuid_count int := 0;
+  v_uuid uuid;
+begin
+  loop
+    seg := split_part(p_name, '/', i);
+    exit when seg = '';
+    begin
+      v_uuid := seg::uuid;
+      uuid_count := uuid_count + 1;
+      if uuid_count = 2 then
+        return v_uuid;
+      end if;
+    exception when others then
+      -- not a uuid, continue scanning
+    end;
+    i := i + 1;
+  end loop;
+  return null;
+end;$$;
+
+-- 2) Evidence bucket: delete allowed to creator or project editors only
+drop policy if exists evidence_delete on storage.objects;
+create policy evidence_delete on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'evidence'
+  and (
+    exists(
+      select 1 from evidence_files ef
+      where ef.file_path = name
+        and ef.created_by = auth.uid()
+    )
+    or is_project_editor(extract_project_from_path(name), auth.uid())
+  )
+);
+
+-- 3) Project-files bucket: tighten delete rules for RFI and Daily Logs specifically
+-- First, ensure the generic delete policy does not cover these subpaths so that specific rules apply
+drop policy if exists project_files_delete on storage.objects;
+create policy project_files_delete on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and position('/rfi/' in name) = 0
+  and position('/daily-logs/' in name) = 0
+  and is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- RFI photos: only RFI creator or project editors may delete
+drop policy if exists project_files_delete_rfi on storage.objects;
+create policy project_files_delete_rfi on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and position('/rfi/' in name) > 0
+  and (
+    exists(
+      select 1 from rfi r
+      where r.id = extract_second_uuid(name)
+        and r.created_by = auth.uid()
+    )
+    or is_project_editor(extract_project_from_path(name), auth.uid())
+  )
+);
+
+-- Daily Log photos: only log creator or project editors may delete
+drop policy if exists project_files_delete_daily_logs on storage.objects;
+create policy project_files_delete_daily_logs on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-files'
+  and position('/daily-logs/' in name) > 0
+  and (
+    exists(
+      select 1 from daily_logs dl
+      where dl.id = extract_second_uuid(name)
+        and dl.created_by = auth.uid()
+    )
+    or is_project_editor(extract_project_from_path(name), auth.uid())
+  )
+);
+
+-- 4) Evidence table: allow creators to delete their own records in addition to editors/owners
+drop policy if exists evidence_files_delete_creator on evidence_files;
+create policy evidence_files_delete_creator on evidence_files
+for delete
+to authenticated
+using (
+  created_by = auth.uid()
+);
+
+-- 5) Daily logs: allow the creator to update their own log (to update photos JSON)
+drop policy if exists daily_logs_modify_creator on daily_logs;
+create policy daily_logs_modify_creator on daily_logs
+for update
+to authenticated
+using (
+  created_by = auth.uid()
+);
+
+-- 6) RFI: allow the creator to update their own RFI (to update photos JSON)
+drop policy if exists rfi_modify_creator on rfi;
+create policy rfi_modify_creator on rfi
+for update
+to authenticated
+using (
+  created_by = auth.uid()
+);
+
+
+-- 057_rfi_numbering_and_responses.sql
+-- RFI numbering and responses
+
+-- 1) Per-project RFI index: add column and auto-increment via function + trigger
+alter table rfi add column if not exists rfi_index integer;
+
+create or replace function next_rfi_index(p_project uuid)
+returns integer language plpgsql as $$
+declare
+  v_next integer;
+begin
+  -- Ensure only one concurrent calculator per project
+  perform pg_advisory_xact_lock(('x'||substr(replace(p_project::text,'-',''),1,16))::bit(64)::bigint);
+  select coalesce(max(rfi_index), 0) + 1 into v_next from rfi where project_id = p_project;
+  return v_next;
+end;$$;
+
+create or replace function trg_rfi_set_index()
+returns trigger language plpgsql as $$
+begin
+  if new.rfi_index is null then
+    new.rfi_index := next_rfi_index(new.project_id);
+  end if;
+  return new;
+end;$$;
+
+drop trigger if exists trg_rfi_set_index on rfi;
+create trigger trg_rfi_set_index before insert on rfi
+for each row execute function trg_rfi_set_index();
+
+-- Unique per project
+create unique index if not exists ux_rfi_project_index on rfi(project_id, rfi_index);
+
+-- 2) Backfill existing rows (idempotent: only rows with null index)
+do $$
+declare
+  rec record;
+begin
+  for rec in select id, project_id from rfi where rfi_index is null order by created_at loop
+    update rfi set rfi_index = next_rfi_index(rec.project_id) where id = rec.id;
+  end loop;
+end$$;
+
+-- 3) RFI responses table for multi-message thread
+create table if not exists rfi_responses (
+  id uuid primary key default gen_random_uuid(),
+  rfi_id uuid not null references rfi(id) on delete cascade,
+  body text not null,
+  attachments jsonb default '[]'::jsonb,
+  created_by uuid not null references auth.users(id),
+  created_at timestamptz default now()
+);
+
+alter table rfi_responses enable row level security;
+
+-- Policies: project members can read/insert; creator or project editors can modify
+drop policy if exists rfi_responses_select on rfi_responses;
+create policy rfi_responses_select on rfi_responses for select using (
+  exists(
+    select 1 from rfi join project_members pm on pm.project_id = rfi.project_id
+    where rfi.id = rfi_responses.rfi_id and pm.user_id = auth.uid()
+  )
+);
+
+drop policy if exists rfi_responses_insert on rfi_responses;
+create policy rfi_responses_insert on rfi_responses for insert with check (
+  exists(
+    select 1 from rfi join project_members pm on pm.project_id = rfi.project_id
+    where rfi.id = rfi_responses.rfi_id and pm.user_id = auth.uid()
+  )
+);
+
+drop policy if exists rfi_responses_modify on rfi_responses;
+create policy rfi_responses_modify on rfi_responses for all using (
+  -- Allow update/delete by creator or project editors
+  created_by = auth.uid()
+  or exists(
+    select 1 from rfi join project_members pm on pm.project_id = rfi.project_id
+    where rfi.id = rfi_responses.rfi_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+);
+
+-- Helpful indexes
+create index if not exists idx_rfi_responses_rfi_created_at on rfi_responses(rfi_id, created_at desc);

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/server';
 
-export async function POST(req: Request, { params }: { params: { logId: string } }) {
+export async function POST(req: Request, context: { params: Promise<{ logId: string }> }) {
   try {
-    const { logId } = params;
+    const { logId } = await context.params;
     const body = await req.json();
     const equipment_name = String(body.equipment_name || '');
     const hours = Number(body.hours || 0);

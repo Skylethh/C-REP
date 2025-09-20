@@ -20,18 +20,31 @@ export function DailyLogPhotoUploader({ projectId, logId }: { projectId: string;
     setBusy(true); setError(null);
     try {
       if (file.size > 15 * 1024 * 1024) throw new Error('Max 15MB');
-      const hash = await sha256Hex(file);
-      const ext = file.name.split('.').pop() || 'bin';
-      const key = `project-files/${projectId}/daily-logs/${logId}/${hash}.${ext}`;
+  const hash = await sha256Hex(file);
+  const ext = file.name.split('.').pop() || 'bin';
+  // Store object key WITHOUT the bucket prefix. Bucket is provided separately in storage.from('project-files')
+  const key = `${projectId}/daily-logs/${logId}/${hash}.${ext}`;
 
-      const { error: upErr } = await supabaseBrowser.storage.from('project-files').upload(key, file, { upsert: false, cacheControl: '3600' });
-      if (upErr && !upErr.message?.includes('exists')) throw upErr;
+  const { error: upErr } = await supabaseBrowser.storage.from('project-files').upload(key, file, { upsert: false, cacheControl: '3600' });
+      if (upErr && !upErr.message?.includes('exists')) {
+        console.error('Upload error (raw):', upErr);
+        const details = (upErr as any)?.error || (upErr as any)?.hint || (upErr as any)?.message || JSON.stringify(upErr);
+        throw new Error(`Yükleme başarısız: ${details}`);
+      }
 
-      // Append to daily_logs.photos
+      // Append to daily_logs.photos with new structure
       const { data, error: selErr } = await supabaseBrowser.from('daily_logs').select('photos').eq('id', logId).maybeSingle();
       if (selErr) throw selErr;
       const current = Array.isArray(data?.photos) ? data?.photos : [];
-      const next = [...current, key];
+      
+      // Create new photo object with path and original filename
+      const photoObj = {
+        // Save path relative to bucket for consistency
+        path: key,
+        original_name: file.name
+      };
+      
+      const next = [...current, photoObj];
       const { error: updErr } = await supabaseBrowser.from('daily_logs').update({ photos: next }).eq('id', logId);
       if (updErr) throw updErr;
 
@@ -51,7 +64,7 @@ export function DailyLogPhotoUploader({ projectId, logId }: { projectId: string;
       <div className="text-sm mb-2">Fotoğraf ekle</div>
       <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
       <button disabled={!file || busy} onClick={handleUpload} className="ml-2 btn-primary px-3 py-1.5">Yükle</button>
-      {error && <div className="text-xs text-red-300 mt-2">{error}</div>}
+      {error && <div className="text-xs text-red-300 mt-2 whitespace-pre-wrap">{error}</div>}
     </div>
   );
 }

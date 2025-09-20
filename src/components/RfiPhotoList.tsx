@@ -9,7 +9,17 @@ type Item = { key: string; url: string | null; name: string };
 const normalizeKey = (k: string) => k.replace(/^project-files\//, '');
 const nameFromKey = (k: string) => (k.split('/').pop() || k);
 
-export function RfiPhotoGrid({ keys, projectId, rfiId }: { keys: string[]; projectId: string; rfiId: string }) {
+export function RfiPhotoList({ 
+  keys, 
+  projectId, 
+  rfiId, 
+  canDelete = false 
+}: { 
+  keys: string[]; 
+  projectId: string; 
+  rfiId: string; 
+  canDelete?: boolean; 
+}) {
   const [items, setItems] = useState<Item[]>([]);
   const [deleting, setDeleting] = useState<Record<string, boolean>>({});
   const [viewing, setViewing] = useState<{ url: string; name: string } | null>(null);
@@ -57,7 +67,7 @@ export function RfiPhotoGrid({ keys, projectId, rfiId }: { keys: string[]; proje
   }
 
   async function handleDelete(key: string) {
-    if (deleting[key]) return;
+    if (deleting[key] || !canDelete) return;
     const prev = items;
     const next = prev.filter((it) => it.key !== key);
     setDeleting((d) => ({ ...d, [key]: true }));
@@ -85,20 +95,31 @@ export function RfiPhotoGrid({ keys, projectId, rfiId }: { keys: string[]; proje
   }
 
   if (!items.length) {
-    return <div className="text-white/60">Fotoğraf yok</div>;
+    return (
+      <div className="text-center py-8 text-white/60">
+        <div className="p-3 bg-white/10 rounded-full mb-3 w-fit mx-auto">
+          <ImageIcon size={24} className="text-leaf-400" />
+        </div>
+        <p className="text-sm">Henüz fotoğraf eklenmemiş</p>
+      </div>
+    );
   }
 
   return (
     <>
-      <div className="space-y-3">
+      <ul className="space-y-3">
         {items.map((it) => (
-          <div key={it.key} className="group rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden">
+          <li key={it.key} className="group rounded-lg border border-white/10 bg-white/5 backdrop-blur-sm overflow-hidden hover:bg-white/10 transition-colors">
             <div className="flex items-center gap-4 p-4">
               {/* Thumbnail */}
               <div className="relative flex-shrink-0">
                 {it.url ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={it.url} alt={it.name} className="w-16 h-16 object-cover rounded-lg border border-white/20" />
+                  <img 
+                    src={it.url} 
+                    alt={it.name} 
+                    className="w-16 h-16 object-cover rounded-lg border border-white/20" 
+                  />
                 ) : (
                   <div className="w-16 h-16 flex items-center justify-center bg-white/10 rounded-lg border border-white/20">
                     <ImageIcon size={20} className="text-leaf-400" />
@@ -142,39 +163,58 @@ export function RfiPhotoGrid({ keys, projectId, rfiId }: { keys: string[]; proje
                     </Button>
                   </>
                 )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => handleDelete(it.key)}
-                  disabled={!!deleting[it.key]}
-                  className="h-8 px-3 bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400"
-                  title="Sil"
-                >
-                  {deleting[it.key] ? 'Siliniyor...' : <Trash2 size={14} />}
-                </Button>
+                {canDelete && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDelete(it.key)}
+                    disabled={!!deleting[it.key]}
+                    className="h-8 px-3 bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 text-red-400"
+                    title="Sil"
+                  >
+                    {deleting[it.key] ? 'Siliniyor...' : <Trash2 size={14} />}
+                  </Button>
+                )}
               </div>
             </div>
-          </div>
+          </li>
         ))}
-      </div>
+      </ul>
 
+      {/* Photo viewer modal */}
       {viewing && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white/10 backdrop-blur-lg rounded-lg border border-white/20 max-w-4xl max-h-[90vh] w-full overflow-hidden">
             <div className="flex items-center justify-between p-3 border-b border-white/20">
-              <div className="text-sm font-medium text-white truncate" title={viewing.name}>{viewing.name}</div>
+              <div className="text-sm font-medium text-white truncate" title={viewing.name}>
+                {viewing.name}
+              </div>
               <div className="flex items-center gap-2">
-                <Button size="sm" variant="outline" className="bg-white/5 border-white/20 hover:bg-white/10" onClick={() => handleDownload(viewing.url, viewing.name)}>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="bg-white/5 border-white/20 hover:bg-white/10" 
+                  onClick={() => handleDownload(viewing.url, viewing.name)}
+                >
                   <Download size={14} className="mr-1" /> İndir
                 </Button>
-                <Button size="sm" variant="outline" className="bg-white/5 border-white/20 hover:bg-white/10" onClick={() => setViewing(null)}>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="bg-white/5 border-white/20 hover:bg-white/10" 
+                  onClick={() => setViewing(null)}
+                >
                   Kapat
                 </Button>
               </div>
             </div>
             <div className="p-4 max-h-[calc(90vh-100px)] overflow-auto">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={viewing.url} alt={viewing.name} className="max-w-full h-auto mx-auto rounded" />
+              <img 
+                src={viewing.url} 
+                alt={viewing.name} 
+                className="max-w-full h-auto mx-auto rounded" 
+              />
             </div>
           </div>
         </div>

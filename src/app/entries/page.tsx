@@ -165,7 +165,7 @@ export default async function EntriesListPage({ searchParams }: { searchParams?:
                 <td className="p-2">
                   <div className="flex items-center justify-end gap-1">
                     <Link
-                      href={`/entries/${e.id}` as any}
+                      href={`/entries/${e.id}?from=entries` as any}
                       className="px-2 py-1 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-white/80 hover:text-white transition-colors"
                       title="Görüntüle"
                     >

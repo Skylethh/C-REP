@@ -5,7 +5,7 @@ import type { Route } from 'next';
 import Link from 'next/link';
 import { WeatherQuickSet } from '@/components/WeatherQuickSet';
 import { DailyLogPhotoUploader } from '@/components/DailyLogPhotoUploader';
-import { DailyLogPhotoGrid } from '@/components/DailyLogPhotoGrid';
+import { DailyLogPhotoList } from '@/components/DailyLogPhotoList';
 import { DailyLogManpowerSection } from '@/components/DailyLogManpowerSection';
 import { DailyLogEquipmentSection } from '@/components/DailyLogEquipmentSection';
 import { DailyLogMaterialsSection } from '@/components/DailyLogMaterialsSection';
@@ -164,7 +164,11 @@ export default async function DailyLogDetailPage({ params }: any) {
         <div className="mb-3">
           <DailyLogPhotoUploader projectId={id} logId={logId} />
         </div>
-        <DailyLogPhotoGrid projectId={id} logId={logId} keys={Array.isArray(log.photos) ? log.photos : []} />
+        <DailyLogPhotoList 
+          projectId={id} 
+          logId={logId} 
+          photos={Array.isArray(log.photos) ? log.photos : []} 
+        />
       </details>
 
       {/* Bottom single Save button (at the very end of the page) */}

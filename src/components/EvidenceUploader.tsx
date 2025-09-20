@@ -1,6 +1,6 @@
 "use client";
 import { supabaseBrowser } from '@/lib/client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './button';
 import { useRouter } from 'next/navigation';
 
@@ -19,12 +19,37 @@ export function EvidenceUploader({ projectId, entryId, onUploaded }: { projectId
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const router = useRouter();
 
+  // Check session on component mount
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabaseBrowser.auth.getSession();
+      if (!session) {
+        console.warn('No active session found on component mount');
+      }
+    };
+    checkSession();
+  }, []);
+
   async function handleUpload() {
     if (!selectedFile) return;
     setBusy(true);
     setError(null);
     try {
       if (selectedFile.size > 10 * 1024 * 1024) throw new Error('Dosya 10MB üstünde');
+      
+      // Get current user for created_by field
+      const { data: userData, error: userError } = await supabaseBrowser.auth.getUser();
+      if (userError) {
+        console.error('Auth error:', userError);
+        throw new Error(`Oturum hatası: ${userError.message}`);
+      }
+      if (!userData.user) {
+        console.warn('No user found in session');
+        throw new Error('Kullanıcı oturumu bulunamadı. Lütfen tekrar giriş yapın.');
+      }
+      
+      console.log('User authenticated:', userData.user.id);
+      
       const hash = await sha256Hex(selectedFile);
       const ext = selectedFile.name.split('.').pop() || 'bin';
       const path = `evidence/${projectId}/${hash}.${ext}`;
@@ -46,6 +71,8 @@ export function EvidenceUploader({ projectId, entryId, onUploaded }: { projectId
         mime: selectedFile.type || 'application/octet-stream',
         hash,
         size: selectedFile.size,
+        created_by: userData.user.id,
+        original_filename: selectedFile.name,
       });
       if (dbErr && dbErr.message?.includes('duplicate')) {
         // ok

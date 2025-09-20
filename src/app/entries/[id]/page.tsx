@@ -6,7 +6,9 @@ import { formatCo2eTons } from '@/lib/units';
 import { ConfirmSubmitButton } from '@/components/ConfirmSubmitButton';
 import { updateEntryNotesAction, deleteEntryAction } from '../actions';
 import { EvidenceUploader } from '@/components/EvidenceUploader';
+import { EvidenceList } from '@/components/EvidenceList';
 import { deleteEvidence } from '@/app/projects/[id]/evidence/server';
+import { SmartBackLink } from '@/components/SmartBackLink';
 
 export default async function EntryDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -22,7 +24,7 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
       .maybeSingle(),
     supabase
       .from('evidence_files')
-      .select('id, file_path, mime, size, created_at, entry_id')
+      .select('id, file_path, mime, size, created_at, entry_id, original_filename')
       .eq('entry_id', id)
       .order('created_at', { ascending: false })
   ]);
@@ -37,14 +39,10 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link
-            href={("/entries" as any)}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/80 hover:text-white transition-colors"
-            aria-label="Geri"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
-            <span>Geri</span>
-          </Link>
+          <SmartBackLink
+            entriesHref="/entries"
+            projectHref={`/projects/${entry.project_id}#entries`}
+          />
           <div>
             <h1 className="text-2xl font-semibold leading-none">Aktivite Detayı</h1>
           </div>
@@ -94,28 +92,11 @@ export default async function EntryDetailPage({ params }: { params: Promise<{ id
           <div id="evidence" className="rounded-lg border border-white/10 bg-white/5 p-4 scroll-mt-24">
             <div className="text-sm font-medium mb-3 text-white/80">Kanıtlar</div>
             <EvidenceUploader projectId={entry.project_id} entryId={entry.id} onUploaded={undefined} />
-            <div className="mt-4 divide-y divide-white/10">
+            <div className="mt-4">
               {(evidence || []).length === 0 ? (
                 <div className="text-sm text-white/60">Henüz kanıt eklenmemiş.</div>
               ) : (
-                (evidence || []).map((f) => (
-                  <div key={f.id} className="flex items-center justify-between py-2">
-                    <div className="min-w-0">
-                      <div className="text-white/80 text-sm truncate">{f.file_path}</div>
-                      <div className="text-xs text-white/60">{f.mime || 'dosya'} · {(f.size ? (f.size/1024).toFixed(1) : '0')} KB · {new Date(f.created_at as any).toLocaleString()}</div>
-                    </div>
-                    <form action={deleteEvidence.bind(null, entry.project_id)}>
-                      <input type="hidden" name="id" value={f.id} />
-                      <input type="hidden" name="file_path" value={f.file_path} />
-                      <ConfirmSubmitButton
-                        className="px-3 py-1.5 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 transition-colors"
-                        message="Bu kanıtı silmek istediğinize emin misiniz?"
-                      >
-                        Sil
-                      </ConfirmSubmitButton>
-                    </form>
-                  </div>
-                ))
+                <EvidenceList projectId={entry.project_id} items={evidence as any} />
               )}
             </div>
           </div>

@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/server';
 
-export async function POST(req: Request, { params }: { params: { logId: string } }) {
+export async function POST(req: Request, context: { params: Promise<{ logId: string }> }) {
   try {
-    const { logId } = params;
+    const { logId } = await context.params;
     const body = await req.json();
     const contractor = typeof body.contractor === 'string' ? body.contractor : null;
     const trade = typeof body.trade === 'string' ? body.trade : null;
@@ -23,7 +23,7 @@ export async function POST(req: Request, { params }: { params: { logId: string }
   }
 }
 
-export async function DELETE(req: Request, { params }: { params: { logId: string } }) {
+export async function DELETE(req: Request) {
   try {
   const supabase = await createClient();
 
