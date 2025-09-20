@@ -103,7 +103,7 @@ export default function DashboardSidebar({
     <aside className="w-full h-full bg-gradient-to-b from-emerald-950 to-ocean-950/90 border-r border-white/10 flex flex-col overflow-hidden">
       <div className="p-4 overflow-y-auto overflow-x-hidden flex-grow">
         <div className="mb-6">
-          <h2 className="text-xl font-bold highlight-text mb-1">C-rep</h2>
+          <h2 className="text-xl font-bold highlight-text mb-1">C-REP</h2>
           <p className="text-xs text-white/60">Karbon Emisyon Yönetimi</p>
         </div>
 

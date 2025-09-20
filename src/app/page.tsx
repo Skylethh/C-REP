@@ -41,7 +41,7 @@ export default async function Page() {
               </h1>
               
               <p className="text-lg text-white/70 max-w-2xl">
-                C-rep, kuruluşunuzun karbon ayak izini proje bazında takip etmenizi, hesaplamanızı ve raporlamanızı sağlayan profesyonel bir platformdur.
+                C-REP, kuruluşunuzun karbon ayak izini proje bazında takip etmenizi, hesaplamanızı ve raporlamanızı sağlayan profesyonel bir platformdur.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
@@ -134,7 +134,7 @@ export default async function Page() {
               Profesyonel <span className="highlight-text">Özellikler</span>
             </h2>
             <p className="section-subtitle">
-              C-rep, karbon emisyonlarınızı yönetmek için ihtiyacınız olan tüm profesyonel araçları sunar.
+              C-REP, karbon emisyonlarınızı yönetmek için ihtiyacınız olan tüm profesyonel araçları sunar.
             </p>
           </div>
           
@@ -220,7 +220,7 @@ export default async function Page() {
               Nasıl <span className="highlight-text">Çalışır?</span>
             </h2>
             <p className="section-subtitle">
-              C-rep ile karbon emisyonlarınızı yönetmek çok kolay
+              C-REP ile karbon emisyonlarınızı yönetmek çok kolay
             </p>
           </div>
           
@@ -297,7 +297,7 @@ export default async function Page() {
                   Sürdürülebilir Geleceğe Adım Atın
                 </h2>
                 <p className="text-white/70 mb-6">
-                  C-rep ile karbon emisyonlarınızı yönetin ve sürdürülebilir bir gelecek için sorumluluk alın.
+                  C-REP ile karbon emisyonlarınızı yönetin ve sürdürülebilir bir gelecek için sorumluluk alın.
                 </p>
                 <Link href="/signup">
                   <Button size="lg" className="btn-primary">
@@ -326,7 +326,7 @@ export default async function Page() {
                   <Leaf className="text-white" size={20} />
                 </div>
                 <span className="font-semibold text-xl tracking-tight">
-                  <span className="highlight-text">C-rep</span>
+                  <span className="highlight-text">C-REP</span>
                 </span>
               </div>
               <p className="text-white/70 text-sm mb-4">
@@ -393,7 +393,7 @@ export default async function Page() {
           
           <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-white/50 text-sm">
-              &copy; {new Date().getFullYear()} C-rep. Tüm hakları saklıdır.
+              &copy; {new Date().getFullYear()} C-REP. Tüm hakları saklıdır.
             </p>
             <div className="flex items-center gap-4 mt-4 md:mt-0">
               <a href="#" className="text-white/50 hover:text-white/70 text-sm">Destek</a>

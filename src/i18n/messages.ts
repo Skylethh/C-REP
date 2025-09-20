@@ -10,10 +10,14 @@ export const messages = {
       signup: 'Kayıt Ol',
       signout: 'Çıkış Yap'
     },
-    brand: 'C-rep',
+  brand: 'C-REP',
     dashboard: {
       title: 'Dashboard',
       welcome: 'Hoş geldin'
+    },
+    charts: {
+      projectsComparisonTitle: 'Projeler Karşılaştırma (Son 90 Gün, tCO2e)',
+      yAxisTons: 'Y ekseni: tCO2e'
     },
     stats: {
       totalProjects: 'Toplam Projeler',
@@ -55,10 +59,14 @@ export const messages = {
       signup: 'Sign Up',
       signout: 'Sign Out'
     },
-    brand: 'C-rep',
+  brand: 'C-REP',
     dashboard: {
       title: 'Dashboard',
       welcome: 'Welcome'
+    },
+    charts: {
+      projectsComparisonTitle: 'Projects Comparison (Last 90 Days, tCO2e)',
+      yAxisTons: 'Y axis: tCO2e'
     },
     stats: {
       totalProjects: 'Total Projects',

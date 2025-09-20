@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { Button } from '@/components/button';
 import { CreateProjectDialog } from '@/components/CreateProjectDialog';
 import { Folder, FileText, Plus } from 'lucide-react';
+import BarChart from '@/components/charts/BarChart';
+import { formatCo2eTons } from '@/lib/units';
 
 export default async function ProjectsIndexPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = (await searchParams) || {};
@@ -43,6 +45,28 @@ export default async function ProjectsIndexPage({ searchParams }: { searchParams
 
   const { data, count } = await projQuery;
   const total = count || 0;
+
+  // Aggregate last 90 days emissions by project (best-effort; empty if RLS prevents)
+  const supabase2 = await createClient();
+  const since = new Date(); since.setDate(since.getDate() - 90);
+  const sinceIso = since.toISOString().slice(0,10);
+  const { data: recentByProject } = await supabase2
+    .from('entries')
+    .select('project_id, projects!inner(name), co2e_value')
+    .gte('date', sinceIso);
+  const byProjectMap = (recentByProject || []).reduce((acc: Record<string, { name: string; total: number }>, row: any) => {
+    const id = String(row.project_id);
+    const name = row.projects?.name || id;
+    if (!acc[id]) acc[id] = { name, total: 0 };
+    acc[id].total += Number(row.co2e_value || 0);
+    return acc;
+  }, {} as Record<string, { name: string; total: number }>);
+  const barData = Object.values(byProjectMap)
+    .map(p => ({ label: p.name, value: p.total }))
+    .sort((a,b) => b.value - a.value)
+    .slice(0, 8);
+
+  const todayIso = new Date().toISOString().slice(0,10);
 
   return (
     <div className="space-y-6">
@@ -119,16 +143,26 @@ export default async function ProjectsIndexPage({ searchParams }: { searchParams
                 </Link>
                 <Link 
                   className="bg-gradient-to-r from-leaf-600/70 to-ocean-600/70 hover:from-leaf-500/90 hover:to-ocean-500/90 px-2 py-1 rounded-md text-white transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-1 text-xs" 
-                  href={`/projects/${p.id}/entries/new`}
+                  href={`/projects/${p.id}/daily-logs/new?date=${todayIso}`}
                 >
                   <Plus size={12} />
-                  <span>Kayıt Ekle</span>
+                  <span>Günlük Ekle</span>
                 </Link>
               </div>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Projects comparison chart */}
+      {barData.length > 0 && (
+        <div className="data-card">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-medium text-white/80">Projeler Karşılaştırma (Son 90 Gün, tCO2e)</h2>
+          </div>
+          <BarChart data={barData} height={360} />
+        </div>
+      )}
 
       {total > limit && (
         <div className="flex items-center justify-center mt-4">

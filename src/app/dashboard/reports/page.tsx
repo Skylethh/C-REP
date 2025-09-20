@@ -5,6 +5,9 @@ import { supabaseBrowser } from '@/lib/client';
 import { formatCo2eTons } from '@/lib/units';
 import { Button } from '@/components/button';
 import DateRangePicker from '@/components/DateRangePicker';
+import dynamic from 'next/dynamic';
+import LineChart from '@/components/charts/LineChart';
+const ReportArchive = dynamic(() => import('@/components/reports/ReportArchive'), { ssr: true });
 import { generateReportTitle } from '@/lib/utils';
 
 export default function ReportsPage() {
@@ -21,6 +24,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(false);
   const [kpi, setKpi] = useState<{ totalEmissions: number; entryCount: number; topSource: string | null; anomalyCount?: number; summary?: string } | null>(null);
   const [customTitle, setCustomTitle] = useState<string>("");
+  const [series, setSeries] = useState<Array<{ label: string; value: number }>>([]);
 
   const onGenerate = async () => {
     if (!projectId || !dateStart || !dateEnd) {
@@ -84,6 +88,11 @@ export default function ReportsPage() {
   const f = formatCo2eTons(Number(data.totalEmissions) || 0, 2);
   setKpi({ totalEmissions: Number(data.totalEmissions) || 0, entryCount: Number(data.entryCount) || 0, topSource: data.topSource || null, anomalyCount: Number(data.anomalyCount) || 0, summary: data.summary || '' });
   setPreview(`Seçilen aralıkta ${data.entryCount} adet kayıt bulundu. Toplam Emisyon: ${f.value} ${f.unit}`);
+  if (Array.isArray(data.series)) {
+    setSeries((data.series || []).map((d: any) => ({ label: d.month || d.label, value: Number(d.totalKg || d.value || 0) })));
+  } else {
+    setSeries([]);
+  }
     } catch (e) {
       console.error(e);
       setPreview('Önizleme sırasında bir hata oluştu.');
@@ -164,6 +173,17 @@ export default function ReportsPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
+      <style jsx>{`
+        /* Improve native dropdown panel aesthetics */
+        select:focus-visible { outline: none; }
+        /* Hint color scheme for system UIs */
+        :root { color-scheme: dark; }
+        /* Cross-browser dropdown background */
+        option { background-color: #082f49; color: #fff; }
+        @-moz-document url-prefix() {
+          option { background-color: #082f49; color: #fff; }
+        }
+      `}</style>
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
         <h1 className="text-xl font-semibold mb-4">Rapor Oluştur</h1>
         <div className="grid gap-4">
@@ -179,16 +199,23 @@ export default function ReportsPage() {
           </div>
             <div className="grid gap-2">
               <label className="text-sm text-white/80">Proje</label>
-              <select
-                value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-                className="bg-transparent border border-white/20 rounded-md px-3 py-2"
-              >
-                <option value="" className="bg-black">Proje seçin…</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id} className="bg-black">{p.name}</option>
-                ))}
-              </select>
+              <div className="relative">
+                <select
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  className="w-full appearance-none bg-ocean-950/30 border border-white/15 rounded-lg pl-3 pr-10 py-2 text-white/90 shadow-inner shadow-black/10 backdrop-blur-sm hover:border-ocean-400/30 hover:bg-ocean-900/20 focus:outline-none focus:ring-2 focus:ring-ocean-400/50 transition-all duration-200"
+                >
+                  <option value="" className="bg-ocean-950 text-white">Proje seçin…</option>
+                  {projects.map((p) => (
+                    <option key={p.id} value={p.id} className="bg-ocean-950 text-white">{p.name}</option>
+                  ))}
+                </select>
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/60">
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                  </svg>
+                </span>
+              </div>
             </div>
           {/* Proje adı alanı kaldırıldı; gerçek ad proje seçimi üzerinden gösterilir */}
           {/* Tarih aralığı bloğu (DateRangePicker) */}
@@ -202,22 +229,44 @@ export default function ReportsPage() {
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
               <label className="text-sm text-white/80">Tür (opsiyonel)</label>
-              <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="bg-transparent border border-white/20 rounded-md px-3 py-2">
-                <option value="" className="bg-black">Hepsi</option>
-                <option value="energy" className="bg-black">Enerji</option>
-                <option value="transport" className="bg-black">Ulaşım</option>
-                <option value="materials" className="bg-black">Malzemeler</option>
-                <option value="other" className="bg-black">Diğer</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="w-full appearance-none bg-ocean-950/30 border border-white/15 rounded-lg pl-3 pr-10 py-2 text-white/90 shadow-inner shadow-black/10 backdrop-blur-sm hover:border-ocean-400/30 hover:bg-ocean-900/20 focus:outline-none focus:ring-2 focus:ring-ocean-400/50 transition-all duration-200"
+                >
+                  <option value="" className="bg-ocean-950 text-white">Hepsi</option>
+                  <option value="energy" className="bg-ocean-950 text-white">Enerji</option>
+                  <option value="transport" className="bg-ocean-950 text-white">Ulaşım</option>
+                  <option value="materials" className="bg-ocean-950 text-white">Malzemeler</option>
+                  <option value="other" className="bg-ocean-950 text-white">Diğer</option>
+                </select>
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/60">
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                  </svg>
+                </span>
+              </div>
             </div>
             <div className="grid gap-2">
               <label className="text-sm text-white/80">Scope (opsiyonel)</label>
-              <select value={scopeFilter} onChange={(e) => setScopeFilter(e.target.value)} className="bg-transparent border border-white/20 rounded-md px-3 py-2">
-                <option value="" className="bg-black">Hepsi</option>
-                <option value="scope1" className="bg-black">Scope 1</option>
-                <option value="scope2" className="bg-black">Scope 2</option>
-                <option value="scope3" className="bg-black">Scope 3</option>
-              </select>
+              <div className="relative">
+                <select
+                  value={scopeFilter}
+                  onChange={(e) => setScopeFilter(e.target.value)}
+                  className="w-full appearance-none bg-ocean-950/30 border border-white/15 rounded-lg pl-3 pr-10 py-2 text-white/90 shadow-inner shadow-black/10 backdrop-blur-sm hover:border-ocean-400/30 hover:bg-ocean-900/20 focus:outline-none focus:ring-2 focus:ring-ocean-400/50 transition-all duration-200"
+                >
+                  <option value="" className="bg-ocean-950 text-white">Hepsi</option>
+                  <option value="scope1" className="bg-ocean-950 text-white">Scope 1 — Doğrudan</option>
+                  <option value="scope2" className="bg-ocean-950 text-white">Scope 2 — Enerji</option>
+                  <option value="scope3" className="bg-ocean-950 text-white">Scope 3 — Diğer dolaylı</option>
+                </select>
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-white/60">
+                  <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 10.94l3.71-3.71a.75.75 0 111.06 1.06l-4.24 4.24a.75.75 0 01-1.06 0L5.21 8.29a.75.75 0 01.02-1.08z" clipRule="evenodd" />
+                  </svg>
+                </span>
+              </div>
             </div>
           </div>
           {/* Preview KPI Cards */}
@@ -263,6 +312,24 @@ export default function ReportsPage() {
           </div>
         </div>
       </div>
+      {/* Archive list */}
+      {projectId ? (<ReportArchive projectId={projectId} />) : null}
+      {series.length > 0 && (
+        <div className="mt-8 bg-white/5 border border-white/10 rounded-xl p-4">
+          <div className="text-sm text-white/70 mb-2 flex items-center gap-2 min-w-0">
+            <span>Zaman Serisi: Aylık Toplam Emisyon (tCO2e)</span>
+            {projectId ? (
+              <span
+                className="text-white/80 font-medium truncate"
+                title={projectLabelById(projectId)}
+              >
+                — {projectLabelById(projectId)}
+              </span>
+            ) : null}
+          </div>
+          <LineChart data={series} />
+        </div>
+      )}
     </div>
   );
 }

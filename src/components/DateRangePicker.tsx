@@ -106,7 +106,7 @@ export default function DateRangePicker({ from, to, onChange, className = "", la
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center justify-between w-full bg-transparent border border-white/20 rounded-md px-3 py-2 text-left hover:border-white/30 transition"
+          className="flex items-center justify-between w-full bg-transparent border border-white/20 rounded-md px-3 py-2 text-left hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-leaf-500/60 transition"
         >
           <span className="truncate text-white/90 text-sm">{labelText}</span>
           <svg className="w-4 h-4 text-white/60 shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
@@ -118,10 +118,10 @@ export default function DateRangePicker({ from, to, onChange, className = "", la
       {open && (
         <div ref={panelRef} className="absolute z-50 mt-2 w-[min(420px,90vw)] bg-black/90 backdrop-blur border border-white/10 rounded-lg shadow-xl p-4">
           <div className="flex flex-wrap gap-2 mb-3">
-            <button type="button" className="text-xs px-2 py-1 rounded-md border border-white/15 text-white/80 hover:bg-white/5" onClick={() => setPreset(last7Days())}>Son 7 gün</button>
-            <button type="button" className="text-xs px-2 py-1 rounded-md border border-white/15 text-white/80 hover:bg-white/5" onClick={() => setPreset({ from: toIso(startOfMonth()), to: toIso(endOfMonth()) })}>Bu ay</button>
-            <button type="button" className="text-xs px-2 py-1 rounded-md border border-white/15 text-white/80 hover:bg-white/5" onClick={() => setPreset(lastMonthRange())}>Geçen ay</button>
-            <button type="button" className="text-xs px-2 py-1 rounded-md border border-white/15 text-white/80 hover:bg-white/5" onClick={() => setPreset(thisYearRange())}>Bu yıl</button>
+            <button type="button" className="text-xs px-2 py-1 rounded-md border border-white/15 text-white/80 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-leaf-500/60" onClick={() => setPreset(last7Days())}>Son 7 gün</button>
+            <button type="button" className="text-xs px-2 py-1 rounded-md border border-white/15 text-white/80 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-leaf-500/60" onClick={() => setPreset({ from: toIso(startOfMonth()), to: toIso(endOfMonth()) })}>Bu ay</button>
+            <button type="button" className="text-xs px-2 py-1 rounded-md border border-white/15 text-white/80 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-leaf-500/60" onClick={() => setPreset(lastMonthRange())}>Geçen ay</button>
+            <button type="button" className="text-xs px-2 py-1 rounded-md border border-white/15 text-white/80 hover:bg-white/5 focus:outline-none focus:ring-2 focus:ring-leaf-500/60" onClick={() => setPreset(thisYearRange())}>Bu yıl</button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -130,7 +130,7 @@ export default function DateRangePicker({ from, to, onChange, className = "", la
                 type="date"
                 value={draftFrom}
                 onChange={(e) => setDraftFrom(e.target.value)}
-                className="bg-transparent border border-white/20 rounded-md px-3 py-2"
+                className="bg-transparent border border-white/20 rounded-md px-3 py-2 hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-leaf-500/60"
               />
             </div>
             <div className="grid gap-2">
@@ -139,7 +139,7 @@ export default function DateRangePicker({ from, to, onChange, className = "", la
                 type="date"
                 value={draftTo}
                 onChange={(e) => setDraftTo(e.target.value)}
-                className="bg-transparent border border-white/20 rounded-md px-3 py-2"
+                className="bg-transparent border border-white/20 rounded-md px-3 py-2 hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-leaf-500/60"
               />
             </div>
           </div>

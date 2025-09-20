@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from 'react';
+import { formatCo2eTons } from '@/lib/units';
 
 interface EmissionData {
   type: string;
@@ -91,14 +92,15 @@ export function EmissionsChart({ data, total }: EmissionsChartProps) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
     ctx.fill();
     
-    // Draw total in center
-    ctx.fillStyle = 'white';
-    ctx.font = 'bold 14px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(`${total.toFixed(1)}`, centerX, centerY - 10);
-    ctx.font = '12px Inter, sans-serif';
-    ctx.fillText('kg CO₂e', centerX, centerY + 10);
+  // Draw total in center (display in tons)
+  const totalTons = formatCo2eTons(total, 1);
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 14px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${totalTons.value}`, centerX, centerY - 10);
+  ctx.font = '12px Inter, sans-serif';
+  ctx.fillText(totalTons.unit, centerX, centerY + 10);
     
   }, [data, total]);
   
@@ -112,6 +114,7 @@ export function EmissionsChart({ data, total }: EmissionsChartProps) {
       'bg-pink-500',
     ];
     
+    const itemTons = formatCo2eTons(item.value, 1);
     return (
       <a
         key={index}
@@ -120,7 +123,7 @@ export function EmissionsChart({ data, total }: EmissionsChartProps) {
       >
         <div className={`w-3 h-3 rounded-full ${colors[index % colors.length]}`}></div>
         <span className="text-xs text-white/70">{item.type}</span>
-        <span className="text-xs font-medium">{item.value.toFixed(1)} kg</span>
+        <span className="text-xs font-medium">{itemTons.value} {itemTons.unit}</span>
       </a>
     );
   });

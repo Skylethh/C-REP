@@ -3245,3 +3245,157 @@ alter table if exists daily_log_materials
   add column if not exists entry_id uuid references entries(id) on delete set null;
 
 create index if not exists idx_dl_materials_entry on daily_log_materials(entry_id);
+
+
+-- 058_generated_reports.sql
+-- 058_generated_reports.sql
+-- Archive table for generated PDF reports with RLS and indexes
+
+create table if not exists generated_reports (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references projects(id) on delete cascade,
+  title text not null,
+  file_path text not null, -- e.g. project-reports/<project_id>/2025-09-20_123000_Report.pdf
+  mime text not null default 'application/pdf',
+  size integer,
+  created_by uuid not null references auth.users(id),
+  created_at timestamptz not null default now(),
+  period_start date,
+  period_end date,
+  scope text,   -- optional: scope1|scope2|scope3|all
+  type text     -- optional: energy|transport|materials|other|all
+);
+
+-- Indexes for fast lookups by project and recency
+create index if not exists idx_generated_reports_project on generated_reports(project_id);
+create index if not exists idx_generated_reports_created_at on generated_reports(created_at desc);
+
+-- Enable RLS
+alter table generated_reports enable row level security;
+
+-- RLS: members of the project can read rows
+drop policy if exists generated_reports_select on generated_reports;
+create policy generated_reports_select on generated_reports
+for select using (
+  exists(
+    select 1 from project_members pm
+    where pm.project_id = generated_reports.project_id and pm.user_id = auth.uid()
+  )
+);
+
+-- RLS: members can insert their own generated records
+-- Note: storage upload policy must also allow insert for members under project-reports bucket
+drop policy if exists generated_reports_insert on generated_reports;
+create policy generated_reports_insert on generated_reports
+for insert with check (
+  exists(
+    select 1 from project_members pm
+    where pm.project_id = generated_reports.project_id and pm.user_id = auth.uid()
+  )
+);
+
+-- RLS: allow delete by editors/owners OR the creator of the row
+drop policy if exists generated_reports_delete on generated_reports;
+create policy generated_reports_delete on generated_reports
+for delete using (
+  exists(
+    select 1 from project_members pm
+    where pm.project_id = generated_reports.project_id and pm.user_id = auth.uid() and pm.role in ('owner','editor')
+  )
+  or generated_reports.created_by = auth.uid()
+);
+
+
+-- 059_storage_project_reports.sql
+-- 059_storage_project_reports.sql
+-- Create 'project-reports' bucket if missing and define policies
+
+-- 1) Ensure bucket exists
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'project-reports') THEN
+    INSERT INTO storage.buckets (id, name, public)
+    VALUES ('project-reports', 'project-reports', false)
+    ON CONFLICT (id) DO NOTHING;
+  END IF;
+END$$;
+
+-- 2) Policies
+-- Read: project members can read files under project-reports/{project_id}/...
+DROP POLICY IF EXISTS project_reports_read ON storage.objects;
+CREATE POLICY project_reports_read ON storage.objects
+FOR SELECT
+TO authenticated
+USING (
+  bucket_id = 'project-reports'
+  AND is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- Insert: allow project members to upload under their project path
+DROP POLICY IF EXISTS project_reports_insert ON storage.objects;
+CREATE POLICY project_reports_insert ON storage.objects
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  bucket_id = 'project-reports'
+  AND is_project_member(extract_project_from_path(name), auth.uid())
+);
+
+-- Delete: allow editors/owners to delete
+DROP POLICY IF EXISTS project_reports_delete ON storage.objects;
+CREATE POLICY project_reports_delete ON storage.objects
+FOR DELETE
+TO authenticated
+USING (
+  bucket_id = 'project-reports'
+  AND is_project_editor(extract_project_from_path(name), auth.uid())
+);
+
+
+-- 060_generated_reports_extras.sql
+-- 060_generated_reports_extras.sql
+-- Add report_id and checksum fields to generated_reports for traceability and authenticity
+
+alter table generated_reports
+  add column if not exists report_id text,
+  add column if not exists checksum_sha256 text;
+
+-- Optional index to quickly search by report_id
+create index if not exists idx_generated_reports_report_id on generated_reports(report_id);
+
+
+-- 061_extract_project_from_path_reports.sql
+-- 061_extract_project_from_path_reports.sql
+-- Extend extract_project_from_path to recognize 'project-reports/{project_uuid}/...'
+
+create or replace function extract_project_from_path(p_name text)
+returns uuid language plpgsql immutable as $$
+declare
+  seg1 text;
+  seg2 text;
+  v_uuid uuid;
+begin
+  -- Supported patterns:
+  -- evidence/{project_uuid}/...
+  -- project-files/{project_uuid}/...
+  -- project-reports/{project_uuid}/...
+  -- {project_uuid}/... (bucket-relative keys)
+  if p_name ~ '^(evidence|project-files|project-reports)/' then
+    seg1 := split_part(p_name, '/', 2);
+  else
+    seg1 := split_part(p_name, '/', 1);
+  end if;
+  begin
+    v_uuid := seg1::uuid;
+    return v_uuid;
+  exception when others then
+    -- try the second segment as fallback
+    seg2 := split_part(p_name, '/', 2);
+    begin
+      v_uuid := seg2::uuid;
+      return v_uuid;
+    exception when others then
+      return null;
+    end;
+  end;
+end;$$;

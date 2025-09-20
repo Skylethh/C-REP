@@ -2,11 +2,12 @@
   "name": "c-rep",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+  "lint": "eslint --config eslint.config.mjs .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:bundle": "node scripts/bundle-migrations.mjs",

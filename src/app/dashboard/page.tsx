@@ -242,10 +242,10 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
                       </Link>
                       <Link 
                         className="bg-gradient-to-r from-leaf-600/70 to-ocean-600/70 hover:from-leaf-500/90 hover:to-ocean-500/90 px-2 py-1 rounded-md text-white transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-1 text-xs" 
-                        href={`/projects/${p.id}/entries/new`}
+                        href={`/projects/${p.id}/daily-logs/new?date=${new Date().toISOString().slice(0,10)}`}
                       >
                         <Plus size={12} />
-                        <span>Kayıt Ekle</span>
+                        <span>Günlük Ekle</span>
                       </Link>
                     </div>
                   </div>

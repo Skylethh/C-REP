@@ -17,7 +17,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
             <div className="bg-gradient-to-br from-leaf-400 to-ocean-400 p-1.5 rounded-lg shadow-glow-sm group-hover:shadow-glow-md transition-all">
               <Leaf className="text-white" size={20} />
             </div>
-            <span className="font-semibold text-xl tracking-tight highlight-text">C-rep</span>
+            <span className="font-semibold text-xl tracking-tight highlight-text">C-REP</span>
           </Link>
           
           <div className="flex items-center gap-4">
@@ -103,7 +103,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
           <div className="bg-gradient-to-br from-leaf-400 to-ocean-400 p-1.5 rounded-lg shadow-glow-sm group-hover:shadow-glow-md transition-all">
             <Leaf className="text-white" size={20} />
           </div>
-          <span className="font-semibold text-xl tracking-tight highlight-text">C-rep</span>
+          <span className="font-semibold text-xl tracking-tight highlight-text">C-REP</span>
         </Link>
         
         <div className="flex items-center gap-4">

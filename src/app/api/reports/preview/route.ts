@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     // Build filtered query similar to project page
     const q = supabase
       .from('entries')
-      .select('co2e_value, type', { count: 'exact' })
+      .select('co2e_value, type, date', { count: 'exact' })
       .eq('project_id', projectId);
     if (dateStart) q.gte('date', dateStart);
     if (dateEnd) q.lte('date', dateEnd);
@@ -52,6 +52,33 @@ export async function POST(req: NextRequest) {
     // Simple anomaly detection: z-score > 3 based on co2e_value
   const values = (data || []).map((r) => Number((r as any).co2e_value) || 0);
   const anomalyCount = findDataAnomalies(values, 3).length;
+
+    // Monthly time series aggregation (YYYY-MM -> totalKg)
+    const monthKey = (s: string | null | undefined) => {
+      if (!s || typeof s !== 'string') return '';
+      // expect 'YYYY-MM-DD' or ISO; take first 7
+      return s.slice(0, 7);
+    };
+    const byMonth = (data || []).reduce<Record<string, number>>((acc, r: any) => {
+      const k = monthKey(r?.date);
+      if (!k) return acc;
+      acc[k] = (acc[k] || 0) + (Number(r?.co2e_value) || 0);
+      return acc;
+    }, {});
+    // Fill gaps between dateStart and dateEnd
+    const start = new Date(`${dateStart}T00:00:00Z`);
+    const end = new Date(`${dateEnd}T00:00:00Z`);
+    start.setUTCDate(1);
+    end.setUTCDate(1);
+    const months: Array<{ month: string; totalKg: number }> = [];
+    const iter = new Date(start.getTime());
+    const ym = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+    while (iter <= end) {
+      const k = ym(iter);
+      months.push({ month: k, totalKg: Number(byMonth[k] || 0) });
+      // advance one month
+      iter.setUTCMonth(iter.getUTCMonth() + 1);
+    }
 
     // Rule-based smart summary (no external API): concise 1-2 sentences
     // Prefer LLM summary when enabled; otherwise fallback to rule-based summary
@@ -78,6 +105,7 @@ export async function POST(req: NextRequest) {
       projectId,
       dateStart,
       dateEnd,
+      series: months,
     };
 
     return new Response(JSON.stringify(result), {
