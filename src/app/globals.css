@@ -52,6 +52,20 @@
     @apply -mx-4 px-4 overflow-x-auto;
   }
 
+
+/* Safe area utilities for notched devices (portrait ergonomics) */
+@supports (padding: max(0px)) {
+  .safe-px {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+  .safe-pt {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+  .safe-pb {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+}
   .glass {
     @apply backdrop-blur-md bg-white/5 border border-white/10 rounded-xl shadow-md;
   }
