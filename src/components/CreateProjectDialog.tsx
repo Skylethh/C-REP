@@ -25,6 +25,19 @@ export function CreateProjectDialog() {
   const [state, formAction] = useActionState(createProject as any, { ok: false } as any);
 
   useEffect(() => {
+    // Allow opening the dialog from anywhere via a custom event
+    const openHandler = () => setOpen(true);
+    if (typeof window !== 'undefined') {
+      window.addEventListener('open-create-project', openHandler as any);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('open-create-project', openHandler as any);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (state?.ok) {
       setSuccess('Proje oluşturuldu');
       if (typeof window !== 'undefined') {
@@ -45,8 +58,8 @@ export function CreateProjectDialog() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
-        <Button data-dialog-trigger="create-project" className="bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500">
-          <span>Yeni Proje</span>
+        <Button data-dialog-trigger="create-project" className="btn-primary">
+          <span>Proje Oluştur</span>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="ml-2">
             <path d="M12 5v14M5 12h14"/>
           </svg>
@@ -54,13 +67,26 @@ export function CreateProjectDialog() {
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl bg-gradient-to-b from-emerald-950 to-ocean-950 border border-white/10 p-0 overflow-hidden shadow-glow-md z-50">
-          <div className="p-5 border-b border-white/10 bg-gradient-to-r from-white/5 to-white/3 backdrop-blur-md">
-            <Dialog.Title className="text-xl font-medium highlight-text">Yeni Proje Oluştur</Dialog.Title>
+        <Dialog.Content className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-xl rounded-2xl bg-gradient-to-b from-emerald-950 to-ocean-950 border border-white/10 p-0 overflow-hidden shadow-glow-lg z-50">
+          <div className="p-6 border-b border-white/10 bg-white/5 relative">
+            <Dialog.Title className="text-xl font-semibold highlight-text">Yeni Proje Oluştur</Dialog.Title>
+            <Dialog.Description className="text-white/60 text-sm mt-1">Proje bilgilerini girin ve oluşturun.</Dialog.Description>
+            <Dialog.Close asChild>
+              <button
+                aria-label="Kapat"
+                className="absolute right-4 top-4 p-2 rounded-md text-white/70 hover:text-white hover:bg-white/10 border border-transparent hover:border-white/10 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18" />
+                  <path d="M6 6l12 12" />
+                </svg>
+              </button>
+            </Dialog.Close>
           </div>
           
-          <div className="p-6 space-y-5">
-            <form action={formAction} className="space-y-5">
+          <div className="p-6">
+            <div className="max-w-md mx-auto">
+            <form action={formAction} className="space-y-7">
               {error ? (
                 <div className="rounded-md border border-red-400/30 bg-red-500/10 text-red-200 px-4 py-3 text-sm flex items-start">
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2 mt-0.5 flex-shrink-0">
@@ -82,7 +108,7 @@ export function CreateProjectDialog() {
                 </div>
               ) : null}
               
-              <div className="space-y-6">
+              <div className="space-y-7">
                 <div className="space-y-2">
                   <label className="form-label">
                     <span className="flex items-center gap-2">
@@ -97,10 +123,10 @@ export function CreateProjectDialog() {
                     name="name" 
                     required 
                     placeholder="Örn: Ofis Binası Renovasyonu"
-                    className="form-input" 
+                    className="form-input h-11 w-full block" 
                     autoFocus
                   />
-                  <p className="text-xs text-white/50 mt-1">Projeniz için benzersiz ve tanımlayıcı bir isim girin.</p>
+                  <p className="text-xs text-white/60 mt-1">Projeniz için benzersiz ve tanımlayıcı bir isim girin.</p>
                 </div>
                 
                 <div className="space-y-2">
@@ -121,19 +147,20 @@ export function CreateProjectDialog() {
                     name="description" 
                     placeholder="Projenizin kısa bir açıklamasını girin..."
                     rows={4}
-                    className="form-input" 
+                    className="form-input min-h-[120px] w-full block" 
                   />
-                  <p className="text-xs text-white/50 mt-1">Proje kapsamı, amacı veya hedeflenen sonuçları hakkında kısa bilgi (opsiyonel).</p>
+                  <p className="text-xs text-white/60 mt-1">Proje kapsamı, amacı veya hedeflenen sonuçları hakkında kısa bilgi (opsiyonel).</p>
                 </div>
               </div>
               
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex justify-end gap-3 pt-5 border-t border-white/10 mt-2">
                 <Dialog.Close asChild>
                   <Button type="button" variant="ghost" className="px-4 py-2">İptal</Button>
                 </Dialog.Close>
                 <SubmitButton />
               </div>
             </form>
+            </div>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

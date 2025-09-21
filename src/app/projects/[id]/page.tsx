@@ -29,10 +29,16 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
   const filterType = ['energy','transport','materials','other'].includes(String(sp?.type)) ? String(sp?.type) : '';
   const filterScope = ['scope1','scope2','scope3'].includes(String(sp?.scope)) ? String(sp?.scope) : '';
   const filterCategory = String(sp?.category || '');
+  const filterActivityKey = String(sp?.activityKey || '');
+  const filterCategoryRaw = String(sp?.categoryRaw || '');
 
+  const hasActivityFilter = !!filterActivityKey;
+  const entriesSelect = hasActivityFilter
+    ? 'id, type, amount, unit, date, co2e_value, co2e_unit, scope, category, notes, created_by, activities!inner(name, key)'
+    : 'id, type, amount, unit, date, co2e_value, co2e_unit, scope, category, notes, created_by, activities(name, key)';
   const entriesQuery = supabase
     .from('entries')
-    .select('id, type, amount, unit, date, co2e_value, co2e_unit, scope, category, notes, created_by, activities(name, key)', { count: 'exact' })
+    .select(entriesSelect as any, { count: 'exact' })
     .eq('project_id', p.id)
     .order('created_at', { ascending: false })
     .order('date', { ascending: false })
@@ -41,17 +47,30 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
   if (end) entriesQuery.lte('date', end);
   if (filterType) entriesQuery.eq('type', filterType);
   if (filterScope) entriesQuery.eq('scope', filterScope);
-  if (filterCategory) entriesQuery.ilike('category', `%${filterCategory}%`);
+  if (filterActivityKey) {
+    entriesQuery.eq('activities.key', filterActivityKey);
+  } else if (filterCategoryRaw) {
+    entriesQuery.eq('category', filterCategoryRaw);
+  } else if (filterCategory) {
+    entriesQuery.ilike('category', `%${filterCategory}%`);
+  }
 
+  const totalsSelect = hasActivityFilter ? 'co2e_value, activities!inner(key)' : 'co2e_value';
   const totalsQuery = supabase
     .from('entries')
-    .select('co2e_value')
+    .select(totalsSelect as any)
     .eq('project_id', p.id);
   if (start) totalsQuery.gte('date', start);
   if (end) totalsQuery.lte('date', end);
   if (filterType) totalsQuery.eq('type', filterType);
   if (filterScope) totalsQuery.eq('scope', filterScope);
-  if (filterCategory) totalsQuery.ilike('category', `%${filterCategory}%`);
+  if (filterActivityKey) {
+    totalsQuery.eq('activities.key', filterActivityKey);
+  } else if (filterCategoryRaw) {
+    totalsQuery.eq('category', filterCategoryRaw);
+  } else if (filterCategory) {
+    totalsQuery.ilike('category', `%${filterCategory}%`);
+  }
 
   const [{ data: project }, { data: entries, count }, { data: evidence }, { data: totals }] = await Promise.all([
     supabase.from('projects').select('id, name, description').eq('id', p.id).maybeSingle(),
@@ -69,11 +88,14 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
   const formatRole = (r?: string) => r === 'owner' ? 'sahip' : r === 'editor' ? 'editör' : r === 'viewer' ? 'görüntüleyici' : (r || '');
   const emailToName = (email?: string) => (email || '').split('@')[0] || '';
 
-  const totalByType = (entries ?? []).reduce<Record<string, number>>((acc, e) => {
+  const entriesList = (entries as any[]) || [];
+  const totalsList = (totals as any[]) || [];
+
+  const totalByType = entriesList.reduce<Record<string, number>>((acc, e: any) => {
     acc[e.type] = (acc[e.type] || 0) + (Number(e.co2e_value) || 0);
     return acc;
   }, {});
-  const totalByScope = (entries ?? []).reduce<Record<string, number>>((acc, e) => {
+  const totalByScope = entriesList.reduce<Record<string, number>>((acc, e: any) => {
     const key = (e as any).scope || 'unknown';
     acc[key] = (acc[key] || 0) + (Number(e.co2e_value) || 0);
     return acc;
@@ -137,6 +159,12 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 Yeni Kayıt Ekle
               </Link>
               <Link
+                href={`/projects/${project.id}/opportunities` as any}
+                className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
+              >
+                Fırsatlar
+              </Link>
+              <Link
                 href={`/projects/${project.id}/rfi`}
                 className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
               >
@@ -158,7 +186,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
         <div>
               <div className="text-sm text-white/70 mb-1">Toplam Emisyon</div>
               <div className="text-3xl font-bold highlight-text">
-                {(() => { const v = (totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0); const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}
+                {(() => { const v = (totalsList.reduce((s: number, r: any) => s + (Number(r.co2e_value) || 0), 0) || 0); const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}
               </div>
               <div className="text-xs text-white/60 mt-1">CO₂ eşdeğeri</div>
             </div>
@@ -170,14 +198,14 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
           <div className="mt-6 grid grid-cols-2 gap-4">
             <div className="rounded-lg bg-white/5 border border-white/10 p-3">
               <div className="text-xs text-white/60 mb-1">Kayıt Sayısı</div>
-              <div className="text-xl font-semibold">{entries?.length || 0}</div>
+              <div className="text-xl font-semibold">{entriesList.length}</div>
             </div>
             <div className="rounded-lg bg-white/5 border border-white/10 p-3">
               <div className="text-xs text-white/60 mb-1">Ortalama</div>
               <div className="text-xl font-semibold">
                 {(() => {
-                  const total = totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0;
-                  const avg = entries && entries.length > 0 ? total / entries.length : 0;
+                  const total = totalsList.reduce((s: number, r: any) => s + (Number(r.co2e_value) || 0), 0) || 0;
+                  const avg = entriesList.length > 0 ? total / entriesList.length : 0;
                   const f = formatCo2eTons(avg, 3);
                   return `${f.value} ${f.unit}`;
                 })()}
@@ -200,7 +228,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
               <li className="text-sm text-white/50 italic">Henüz veri yok</li>
             ) : (
               Object.entries(totalByType).map(([k,v]) => {
-                const total = totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0;
+                const total = totalsList.reduce((s: number, r: any) => s + (Number(r.co2e_value) || 0), 0) || 0;
                 const percentage = total > 0 ? (v / total) * 100 : 0;
                 
                 let colorClass = 'bg-leaf-500';
@@ -242,7 +270,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
               <li className="text-sm text-white/50 italic">Henüz veri yok</li>
             ) : (
               Object.entries(totalByScope).map(([k,v]) => {
-                const total = totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0;
+                const total = totalsList.reduce((s: number, r: any) => s + (Number(r.co2e_value) || 0), 0) || 0;
                 const percentage = total > 0 ? (v / total) * 100 : 0;
                 
                 let colorClass = 'bg-emerald-500';
@@ -294,7 +322,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
             
             <div className="flex items-center gap-3">
               <Link 
-                href={`/projects/${project.id}/export?start=${start}&end=${end}&type=${filterType}&scope=${filterScope}&category=${encodeURIComponent(filterCategory)}`}
+                href={`/projects/${project.id}/export?start=${start}&end=${end}&type=${filterType}&scope=${filterScope}&category=${encodeURIComponent(filterCategory)}&categoryRaw=${encodeURIComponent(filterCategoryRaw)}&activityKey=${encodeURIComponent(filterActivityKey)}`}
                 className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-md transition-all duration-200 flex items-center gap-1.5 text-sm"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -388,26 +416,53 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 </div>
               </div>
             </div>
+            {/* Aktif filtreler chip'leri */}
+            {(() => {
+              const chips: Array<{ key: string; label: string }> = [];
+              if (start) chips.push({ key: 'start', label: `Başlangıç: ${start}` });
+              if (end) chips.push({ key: 'end', label: `Bitiş: ${end}` });
+              if (filterType) {
+                const typeLabel = filterType === 'energy' ? 'Enerji' : filterType === 'transport' ? 'Ulaşım' : filterType === 'materials' ? 'Malzeme' : 'Diğer';
+                chips.push({ key: 'type', label: `Tür: ${typeLabel}` });
+              }
+              if (filterScope) {
+                const scopeLabel = filterScope === 'scope1' ? 'Doğrudan' : filterScope === 'scope2' ? 'Satın Alınan Enerji' : 'Diğer Dolaylı';
+                chips.push({ key: 'scope', label: `Emisyon Kaynağı: ${scopeLabel}` });
+              }
+              if (filterActivityKey) chips.push({ key: 'activityKey', label: `Aktivite: ${filterActivityKey}` });
+              if (filterCategoryRaw) chips.push({ key: 'categoryRaw', label: `Kategori (tam): ${filterCategoryRaw}` });
+              if (!filterActivityKey && !filterCategoryRaw && filterCategory) chips.push({ key: 'category', label: `Kategori: ${filterCategory}` });
+              if (chips.length === 0) return null;
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  {chips.map((c) => (
+                    <span key={c.key} className="text-xs px-2 py-1 rounded-md bg-white/10 text-white/80 border border-white/10">
+                      {c.label}
+                    </span>
+                  ))}
+                  <Link href={`/projects/${project.id}#entries`} className="text-xs px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/70 hover:text-white transition-colors">
+                    Filtreleri Temizle
+                  </Link>
+                </div>
+              );
+            })()}
             
             <div className="flex items-center justify-between">
               <button 
-                className="bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500 px-4 py-2 rounded-lg text-white transition-all duration-300 shadow-md hover:shadow-lg flex items-center gap-2"
+                className="bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500 px-4 py-2 rounded-lg text-white transition-all duration-300 shadow-md hover:shadow-lg"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                </svg>
-                <span>Filtreleri Uygula</span>
+                Filtreleri Uygula
               </button>
               
               <div className="flex items-center gap-2">
                 <span className="text-white/70 text-sm">Toplam CO₂e:</span>
-                <span className="text-lg font-semibold highlight-text">{(() => { const v = (totals?.reduce((s, r) => s + (Number(r.co2e_value) || 0), 0) || 0); const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}</span>
+                <span className="text-lg font-semibold highlight-text">{(() => { const v = (totalsList.reduce((s: number, r: any) => s + (Number(r.co2e_value) || 0), 0) || 0); const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}</span>
               </div>
             </div>
           </form>
         </div>
   <div id="entries" className="mt-6 space-y-6 scroll-mt-24">
-          {(!entries || entries.length === 0) ? (
+    {(entriesList.length === 0) ? (
             <div className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-8 text-center">
               <div className="bg-gradient-to-br from-leaf-500/10 to-ocean-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10 shadow-md">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white/40">
@@ -432,7 +487,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
             </div>
           ) : (
             <div className="space-y-4">
-              {entries?.map((e) => {
+              {entriesList.map((e: any) => {
                 const entryEvidence = (evidence || []).filter((x: any) => x.entry_id === e.id);
 
                 // Tür için renk ve ikon belirleme
@@ -539,7 +594,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                   <div className="inline-flex items-center gap-2 rounded-md bg-white/5 border border-white/10 p-1">
           {page > 1 ? (
             <Link
-              href={`/projects/${project.id}?page=${page-1}&limit=${limit}&start=${start}&end=${end}&type=${filterType}&scope=${filterScope}&category=${encodeURIComponent(filterCategory)}`}
+              href={`/projects/${project.id}?page=${page-1}&limit=${limit}&start=${start}&end=${end}&type=${filterType}&scope=${filterScope}&category=${encodeURIComponent(filterCategory)}&categoryRaw=${encodeURIComponent(filterCategoryRaw)}&activityKey=${encodeURIComponent(filterActivityKey)}#entries`}
                         className="p-2 rounded-md hover:bg-white/10 transition-all text-white/80 hover:text-white"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -560,7 +615,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                     
           {(count ?? 0) > page*limit ? (
             <Link
-              href={`/projects/${project.id}?page=${page+1}&limit=${limit}&start=${start}&end=${end}&type=${filterType}&scope=${filterScope}&category=${encodeURIComponent(filterCategory)}`}
+              href={`/projects/${project.id}?page=${page+1}&limit=${limit}&start=${start}&end=${end}&type=${filterType}&scope=${filterScope}&category=${encodeURIComponent(filterCategory)}&categoryRaw=${encodeURIComponent(filterCategoryRaw)}&activityKey=${encodeURIComponent(filterActivityKey)}#entries`}
                         className="p-2 rounded-md hover:bg-white/10 transition-all text-white/80 hover:text-white"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -108,9 +108,6 @@ export function Header({ user }: { user?: { email?: string } | null }) {
         
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-4">
-            <Link href="/dashboard" className="text-sm text-white/80 hover:text-white transition-colors">
-              Dashboard
-            </Link>
             <Link href={"/projects" as any} className="text-sm text-white/80 hover:text-white transition-colors">
               Projeler
             </Link>
@@ -200,9 +197,6 @@ export function Header({ user }: { user?: { email?: string } | null }) {
       {mobileMenuOpen && (
   <div className="md:hidden glass mx-4 my-2 p-4 animate-in slide-in-from-top-5 duration-200 max-w-lg">
           <div className="flex flex-col space-y-4">
-            <Link href="/dashboard" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
-              Dashboard
-            </Link>
             <Link href={"/projects" as any} className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
               Projeler
             </Link>

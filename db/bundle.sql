@@ -2272,6 +2272,29 @@ create policy entries_update on entries
   );
 
 
+-- 041_more_nonzero_placeholders.sql
+-- Provide non-zero baseline for additional placeholder-only categories
+
+-- Fill aggregate (dolgu_agrega) — illustrative placeholder value
+insert into emission_factors(category, scope, region, unit_in, unit_out, value, source, version, valid_from) values
+  ('dolgu_agrega', 'scope3', 'global', 't', 'kg', 10.0, 'seed:basic', '2025', '2025-01-01')
+on conflict do nothing;
+
+-- Map activities to the latest factor for the updated category
+insert into activity_factors(activity_id, factor_id)
+select a.id, f.id
+from activities a
+join emission_factors f on f.category = a.category and f.region = 'global'
+where a.category in ('dolgu_agrega')
+  and f.valid_from = (
+    select max(valid_from) from emission_factors f2 where f2.category = f.category and f2.region = f.region
+  )
+on conflict do nothing;
+
+
+-- 042_missing_nonzero_factors.sql
+
+
 -- 042_project_members_emails.sql
 -- Return project members along with their emails (SECURITY DEFINER)
 -- Only callable by users who are already members of the project
@@ -3364,38 +3387,42 @@ alter table generated_reports
 create index if not exists idx_generated_reports_report_id on generated_reports(report_id);
 
 
--- 061_extract_project_from_path_reports.sql
--- 061_extract_project_from_path_reports.sql
--- Extend extract_project_from_path to recognize 'project-reports/{project_uuid}/...'
+-- 061_dismissed_opportunities.sql
+-- Create table for per-user dismissed opportunities
+create table if not exists public.dismissed_opportunities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  project_id uuid not null references public.projects(id) on delete cascade,
+  rule_id text not null,
+  opportunity_key text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, project_id, opportunity_key)
+);
 
-create or replace function extract_project_from_path(p_name text)
-returns uuid language plpgsql immutable as $$
-declare
-  seg1 text;
-  seg2 text;
-  v_uuid uuid;
-begin
-  -- Supported patterns:
-  -- evidence/{project_uuid}/...
-  -- project-files/{project_uuid}/...
-  -- project-reports/{project_uuid}/...
-  -- {project_uuid}/... (bucket-relative keys)
-  if p_name ~ '^(evidence|project-files|project-reports)/' then
-    seg1 := split_part(p_name, '/', 2);
-  else
-    seg1 := split_part(p_name, '/', 1);
-  end if;
-  begin
-    v_uuid := seg1::uuid;
-    return v_uuid;
-  exception when others then
-    -- try the second segment as fallback
-    seg2 := split_part(p_name, '/', 2);
-    begin
-      v_uuid := seg2::uuid;
-      return v_uuid;
-    exception when others then
-      return null;
-    end;
-  end;
-end;$$;
+alter table public.dismissed_opportunities enable row level security;
+
+-- Note: CREATE POLICY does not support IF NOT EXISTS; use DROP ... IF EXISTS first for idempotency
+drop policy if exists dismissed_opportunities_ins on public.dismissed_opportunities;
+create policy dismissed_opportunities_ins
+  on public.dismissed_opportunities
+  for insert
+  to authenticated
+  with check (auth.uid() = user_id);
+
+drop policy if exists dismissed_opportunities_sel on public.dismissed_opportunities;
+create policy dismissed_opportunities_sel
+  on public.dismissed_opportunities
+  for select
+  to authenticated
+  using (auth.uid() = user_id);
+
+drop policy if exists dismissed_opportunities_del on public.dismissed_opportunities;
+create policy dismissed_opportunities_del
+  on public.dismissed_opportunities
+  for delete
+  to authenticated
+  using (auth.uid() = user_id);
+
+-- Helpful index for filtering
+create index if not exists idx_dismissed_opportunities_user_project
+  on public.dismissed_opportunities(user_id, project_id);

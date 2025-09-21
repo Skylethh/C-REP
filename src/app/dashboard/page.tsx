@@ -8,16 +8,14 @@ import { getMessages } from '@/i18n';
 import { 
   BarChart2, 
   Calendar, 
-  Clock, 
   FileText, 
   Folder, 
   Plus, 
-  Settings, 
-  TrendingUp,
   Activity,
   Factory 
 } from 'lucide-react';
 import { Button } from '@/components/button';
+import { OpenCreateProjectButton } from '@/components/OpenCreateProjectButton';
 import { formatCo2eTons } from '@/lib/units';
 
 export default async function DashboardPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
@@ -210,10 +208,7 @@ export default async function DashboardPage({ searchParams }: { searchParams?: P
               </div>
               <h3 className="font-medium text-lg mb-3 highlight-text">{dict.misc.noData}</h3>
               <p className="text-white/70 text-sm mb-5">{dict.cta.createProject}</p>
-              <Button className="btn-primary">
-                <span className="font-medium">{dict.cta.createProject}</span>
-                <Plus size={18} className="ml-2" />
-              </Button>
+              <OpenCreateProjectButton label={dict.cta.createProject} />
             </div>
           ) : (
             <div className="grid md:grid-cols-2 gap-5">

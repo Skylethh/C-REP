@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/server';
 import { revalidatePath } from 'next/cache';
+import { normalizeCategory } from '@/lib/categoryAliases';
 
 // Legacy endpoint upgraded to unified flow: also creates an emission entry and links entry_id
 export async function POST(req: Request, context: { params: Promise<{ logId: string }> }) {
@@ -50,6 +51,7 @@ export async function POST(req: Request, context: { params: Promise<{ logId: str
         .select('emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
         .eq('activity_id', activity.id)
         .eq('emission_factors.region', 'global')
+        .neq('emission_factors.value', 0)
         .order('emission_factors.valid_from', { ascending: false })
         .limit(1);
       if (date) (q as any).lte('emission_factors.valid_from', date);
@@ -57,27 +59,83 @@ export async function POST(req: Request, context: { params: Promise<{ logId: str
       if ((mapped as any)?.emission_factors) factor = (mapped as any).emission_factors as any;
     }
     if (!factor) {
+      const normalizedCategory = normalizeCategory(activity.category ?? activity.type) || (activity.category ?? activity.type);
       const fq = supabase
         .from('emission_factors')
         .select('unit_in, unit_out, value, valid_from')
-        .eq('category', activity.category ?? activity.type)
+        .eq('category', normalizedCategory)
         .eq('region', 'global')
+        .neq('value', 0)
         .order('valid_from', { ascending: false })
         .limit(1);
       if (date) (fq as any).lte('valid_from', date);
       const { data: fac } = await fq.maybeSingle();
       if (fac) factor = fac as any;
+      // Fallback: ignore date if none found
+      if (!factor) {
+        const fq2 = await supabase
+          .from('emission_factors')
+          .select('unit_in, unit_out, value, valid_from')
+          .eq('category', normalizedCategory)
+          .eq('region', 'global')
+          .neq('value', 0)
+          .order('valid_from', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (fq2.data) factor = fq2.data as any;
+      }
+      // Fallback: relaxed prefix match on category
+      if (!factor) {
+        const fqp = await supabase
+          .from('emission_factors')
+          .select('unit_in, unit_out, value, valid_from')
+          .ilike('category', `${normalizedCategory}%`)
+          .eq('region', 'global')
+          .neq('value', 0)
+          .order('valid_from', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (fqp.data) factor = fqp.data as any;
+      }
       if (!factor && activity.key) {
+        const normalizedKey = normalizeCategory(activity.key) || activity.key;
         const fk = supabase
           .from('emission_factors')
           .select('unit_in, unit_out, value, valid_from')
-          .eq('category', activity.key)
+          .eq('category', normalizedKey)
           .eq('region', 'global')
+          .neq('value', 0)
           .order('valid_from', { ascending: false })
           .limit(1);
         if (date) (fk as any).lte('valid_from', date);
         const { data: fac3 } = await fk.maybeSingle();
         if (fac3) factor = fac3 as any;
+        // Fallback: ignore date
+        if (!factor) {
+          const fk2 = await supabase
+            .from('emission_factors')
+            .select('unit_in, unit_out, value, valid_from')
+            .eq('category', normalizedKey)
+            .eq('region', 'global')
+            .neq('value', 0)
+            .order('valid_from', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (fk2.data) factor = fk2.data as any;
+        }
+        // Fallback: relaxed prefix match on key
+        if (!factor) {
+          const fkp = await supabase
+            .from('emission_factors')
+            .select('unit_in, unit_out, value, valid_from')
+            .ilike('category', `${normalizedKey}%`)
+            .eq('region', 'global')
+            .neq('value', 0)
+            .order('valid_from', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          if (fkp.data) factor = fkp.data as any;
+        }
       }
     }
     if (!factor) return NextResponse.json({ error: 'Uygun emisyon faktörü bulunamadı' }, { status: 400 });

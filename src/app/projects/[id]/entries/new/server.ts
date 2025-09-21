@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation';
 import type { Route } from 'next';
 import { z } from 'zod';
 import { captureServerError } from '@/sentry.server.config';
+import { normalizeCategory } from '@/lib/categoryAliases';
 
 const schema = z.object({
   type: z.enum(['energy','transport','materials','other']),
@@ -136,6 +137,7 @@ export async function createEntry(projectId: string, formData: FormData) {
       .select('factor_id, emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
       .eq('activity_id', activity.id)
       .eq('emission_factors.region', 'global')
+      .neq('emission_factors.value', 0)
       .order('emission_factors.valid_from', { ascending: false })
       .limit(1);
     // Date-aware factor: choose factor whose valid_from <= entry date
@@ -149,6 +151,7 @@ export async function createEntry(projectId: string, formData: FormData) {
         .select('factor_id, emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
         .eq('activity_id', activity.id)
         .eq('emission_factors.region', 'global')
+        .neq('emission_factors.value', 0)
         .order('emission_factors.valid_from', { ascending: false })
         .limit(1);
       const { data: mapped2 } = await q2.maybeSingle();
@@ -156,11 +159,13 @@ export async function createEntry(projectId: string, formData: FormData) {
     }
   }
   if (!factor) {
+    const normalizedCategory = normalizeCategory(factorCategory) || factorCategory;
     const fq = supabase
       .from('emission_factors')
       .select('unit_in, unit_out, value, valid_from')
-      .eq('category', factorCategory)
+      .eq('category', normalizedCategory)
       .eq('region', 'global')
+      .neq('value', 0)
       .order('valid_from', { ascending: false })
       .limit(1);
     if (date) (fq as any).lte('valid_from', date);
@@ -171,12 +176,26 @@ export async function createEntry(projectId: string, formData: FormData) {
       const fq2 = supabase
         .from('emission_factors')
         .select('unit_in, unit_out, value, valid_from')
-        .eq('category', factorCategory)
+        .eq('category', normalizedCategory)
         .eq('region', 'global')
+        .neq('value', 0)
         .order('valid_from', { ascending: false })
         .limit(1);
       const resp2 = await fq2.maybeSingle();
       factor = resp2.data;
+    }
+    // Fallback: relaxed prefix match on category
+    if (!factor) {
+      const fqp = await supabase
+        .from('emission_factors')
+        .select('unit_in, unit_out, value, valid_from')
+        .ilike('category', `${normalizedCategory}%`)
+        .eq('region', 'global')
+        .neq('value', 0)
+        .order('valid_from', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      factor = fqp.data;
     }
     // Fallback 2: If still not found and we have an activity with a specific key, try factor by key (e.g., concrete_c30)
     if (!factor && activity?.id) {
@@ -187,11 +206,13 @@ export async function createEntry(projectId: string, formData: FormData) {
         .maybeSingle();
       const key = actKeyRow?.key as string | undefined;
       if (key) {
+        const normalizedKey = normalizeCategory(key) || key;
         const fk = supabase
           .from('emission_factors')
           .select('unit_in, unit_out, value, valid_from')
-          .eq('category', key)
+          .eq('category', normalizedKey)
           .eq('region', 'global')
+          .neq('value', 0)
           .order('valid_from', { ascending: false })
           .limit(1);
         if (date) (fk as any).lte('valid_from', date);
@@ -201,8 +222,9 @@ export async function createEntry(projectId: string, formData: FormData) {
           const fk2 = await supabase
             .from('emission_factors')
             .select('unit_in, unit_out, value, valid_from')
-            .eq('category', key)
+            .eq('category', normalizedKey)
             .eq('region', 'global')
+            .neq('value', 0)
             .order('valid_from', { ascending: false })
             .limit(1)
             .maybeSingle();

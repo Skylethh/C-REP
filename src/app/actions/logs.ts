@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from '@/lib/server';
 import { revalidatePath } from 'next/cache';
+import { normalizeCategory } from '@/lib/categoryAliases';
 
 // Unified server action: create entry and append to daily_log_materials
 export async function addActivityToDailyLog(dailyLogId: string, formData: FormData) {
@@ -38,6 +39,7 @@ export async function addActivityToDailyLog(dailyLogId: string, formData: FormDa
   // Compute CO2e similar to standalone
   const chosenType = activity?.type || type;
   const factorCategory = category || activity?.category || chosenType;
+  const normalizedCategory = normalizeCategory(factorCategory) || factorCategory;
   let factor: any = null;
   if (activity?.id) {
     const q = supabase
@@ -45,6 +47,7 @@ export async function addActivityToDailyLog(dailyLogId: string, formData: FormDa
       .select('emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
       .eq('activity_id', activity.id)
       .eq('emission_factors.region', 'global')
+      .neq('emission_factors.value', 0)
       .order('emission_factors.valid_from', { ascending: false })
       .limit(1);
     if (date) (q as any).lte('emission_factors.valid_from', date);
@@ -56,6 +59,7 @@ export async function addActivityToDailyLog(dailyLogId: string, formData: FormDa
         .select('emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
         .eq('activity_id', activity.id)
         .eq('emission_factors.region', 'global')
+        .neq('emission_factors.value', 0)
         .order('emission_factors.valid_from', { ascending: false })
         .limit(1);
       const { data: mapped2 } = await q2.maybeSingle();
@@ -66,19 +70,22 @@ export async function addActivityToDailyLog(dailyLogId: string, formData: FormDa
     let fq = supabase
       .from('emission_factors')
       .select('unit_in, unit_out, value, valid_from')
-      .eq('category', factorCategory)
+      .eq('category', normalizedCategory)
       .eq('region', 'global')
+      .neq('value', 0)
       .order('valid_from', { ascending: false })
       .limit(1);
     if (date) (fq as any).lte('valid_from', date);
     const { data: fac } = await fq.maybeSingle();
     if (fac) factor = fac as any;
     if (!factor && activity?.key) {
+      const normalizedKey = normalizeCategory(activity.key) || activity.key;
       let fk = supabase
         .from('emission_factors')
         .select('unit_in, unit_out, value, valid_from')
-        .eq('category', activity.key)
+        .eq('category', normalizedKey)
         .eq('region', 'global')
+        .neq('value', 0)
         .order('valid_from', { ascending: false })
         .limit(1);
       if (date) (fk as any).lte('valid_from', date);

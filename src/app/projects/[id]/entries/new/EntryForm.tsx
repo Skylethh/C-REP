@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Calculator } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/client';
+import { normalizeCategory } from '@/lib/categoryAliases';
 import { Button } from '@/components/button';
 import ActivitySelect from './ActivitySelect';
 import UnitSelect from './UnitSelect';
@@ -110,6 +111,7 @@ export default function EntryForm({ projectId, action }: Props) {
             .select('emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
             .eq('activity_id', activity)
             .eq('emission_factors.region', 'global')
+            .neq('emission_factors.value', 0)
             .order('emission_factors.valid_from', { ascending: false })
             .limit(1);
           if (date) (q as any).lte('emission_factors.valid_from', date);
@@ -124,6 +126,7 @@ export default function EntryForm({ projectId, action }: Props) {
               .select('emission_factors!inner(unit_in, unit_out, value, valid_from, region)')
               .eq('activity_id', activity)
               .eq('emission_factors.region', 'global')
+              .neq('emission_factors.value', 0)
               .order('emission_factors.valid_from', { ascending: false })
               .limit(1);
             const { data: mapped2 } = await q2.maybeSingle();
@@ -147,11 +150,15 @@ export default function EntryForm({ projectId, action }: Props) {
             if (actCat?.key) activityKey = String(actCat.key);
           }
           if (!factorCategory) factorCategory = type; // last resort
+          // Normalize free-text Turkish inputs to canonical slug
+          const normalizedCategory = normalizeCategory(factorCategory) || factorCategory;
+          const normalizedKey = activityKey ? (normalizeCategory(activityKey) || activityKey) : null;
           let fq = supabaseBrowser
             .from('emission_factors')
             .select('unit_in, unit_out, value, valid_from')
-            .eq('category', factorCategory)
+            .eq('category', normalizedCategory)
             .eq('region', 'global')
+            .neq('value', 0)
             .order('valid_from', { ascending: false })
             .limit(1);
           if (date) (fq as any).lte('valid_from', date);
@@ -162,12 +169,26 @@ export default function EntryForm({ projectId, action }: Props) {
             const fq2 = supabaseBrowser
               .from('emission_factors')
               .select('unit_in, unit_out, value, valid_from')
-              .eq('category', factorCategory)
+              .eq('category', normalizedCategory)
               .eq('region', 'global')
+              .neq('value', 0)
               .order('valid_from', { ascending: false })
               .limit(1);
             const { data: fac2 } = await fq2.maybeSingle();
             if (fac2) factor = fac2 as any;
+          }
+          // Fallback: relaxed prefix match on category
+          if (!factor) {
+            const fqp = supabaseBrowser
+              .from('emission_factors')
+              .select('unit_in, unit_out, value, valid_from')
+              .ilike('category', `${normalizedCategory}%`)
+              .eq('region', 'global')
+              .neq('value', 0)
+              .order('valid_from', { ascending: false })
+              .limit(1);
+            const { data: facp } = await fqp.maybeSingle();
+            if (facp) factor = facp as any;
           }
           // Fallback 2: try by activity key (e.g., concrete_c30) if category lookup failed
           if (!factor && activity) {
@@ -179,12 +200,14 @@ export default function EntryForm({ projectId, action }: Props) {
                 .maybeSingle();
               activityKey = act?.key || null;
             }
-            if (activityKey) {
+            const tryKey = normalizedKey || (activityKey ? (normalizeCategory(activityKey) || activityKey) : null);
+            if (tryKey) {
               let fk = supabaseBrowser
                 .from('emission_factors')
                 .select('unit_in, unit_out, value, valid_from')
-                .eq('category', activityKey)
+                .eq('category', tryKey)
                 .eq('region', 'global')
+                .neq('value', 0)
                 .order('valid_from', { ascending: false })
                 .limit(1);
               if (date) (fk as any).lte('valid_from', date);
@@ -194,8 +217,9 @@ export default function EntryForm({ projectId, action }: Props) {
                 const fk2 = supabaseBrowser
                   .from('emission_factors')
                   .select('unit_in, unit_out, value, valid_from')
-                  .eq('category', activityKey)
+                  .eq('category', tryKey)
                   .eq('region', 'global')
+                  .neq('value', 0)
                   .order('valid_from', { ascending: false })
                   .limit(1);
                 const { data: fac4 } = await fk2.maybeSingle();

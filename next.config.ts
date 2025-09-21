@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
                 try { return new URL(supabase).origin; } catch { return ''; }
               })();
               // Allow inline & wasm eval also in prod to avoid blocking Next boot scripts in absence of nonces
-              const scriptSrc = "'self' 'unsafe-inline' 'wasm-unsafe-eval'";
+              const scriptSrc = "'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'";
               const connectSrc = ["'self'", 'https:', 'ws:', 'wss:', supabaseOrigin].filter(Boolean).join(' ');
               return [
                 "default-src 'self'",

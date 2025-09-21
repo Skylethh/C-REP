@@ -1,10 +1,9 @@
 import { createClient } from '@/lib/server';
 import Link from 'next/link';
-import { Button } from '@/components/button';
 import { CreateProjectDialog } from '@/components/CreateProjectDialog';
 import { Folder, FileText, Plus } from 'lucide-react';
 import BarChart from '@/components/charts/BarChart';
-import { formatCo2eTons } from '@/lib/units';
+import { SmartBackLink } from '@/components/SmartBackLink';
 
 export default async function ProjectsIndexPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const sp = (await searchParams) || {};
@@ -71,9 +70,11 @@ export default async function ProjectsIndexPage({ searchParams }: { searchParams
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Projelerim</h1>
+        <div className="flex items-center gap-3">
+          <SmartBackLink entriesHref={'/'} label="Geri" />
+          <h1 className="text-xl font-semibold">Projelerim</h1>
+        </div>
         <div className="flex items-center gap-2">
-          <Link href={"/dashboard" as any} className="text-white/70 hover:text-white text-sm">Dashboard</Link>
           <CreateProjectDialog />
         </div>
       </div>
