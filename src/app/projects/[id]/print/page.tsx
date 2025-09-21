@@ -58,7 +58,7 @@ export default async function PrintPage({ params }: { params: { id: string } }) 
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+          <table className="w-full min-w-[720px] text-sm border-collapse">
             <thead>
               <tr className="border-b border-white/20 print:border-gray-300 bg-white/5 print:bg-gray-100">
                 <th className="text-left py-3 px-4 font-medium print:text-black">Tarih</th>

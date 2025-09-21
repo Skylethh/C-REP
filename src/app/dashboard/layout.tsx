@@ -16,10 +16,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
   
   return (
   <div className="flex min-h-[calc(100vh-4rem)]">
-      <div className="w-64 min-w-64 flex-shrink-0">
+      <div className="hidden md:block w-64 min-w-64 flex-shrink-0">
         <DashboardSidebar projects={projects || []} />
       </div>
-      <div className="flex-1 overflow-x-hidden p-6">
+      <div className="flex-1 overflow-x-hidden p-4 md:p-6">
         {children}
       </div>
     </div>

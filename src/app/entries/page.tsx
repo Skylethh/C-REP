@@ -127,8 +127,8 @@ export default async function EntriesListPage({ searchParams }: { searchParams?:
         </div>
       </form>
 
-      <div className="rounded-md border border-white/10 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-md border border-white/10 overflow-x-auto">
+  <table className="w-full min-w-[720px] text-sm">
           <thead>
             <tr className="bg-white/5">
               <th className="text-left p-2">Tarih</th>

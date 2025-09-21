@@ -39,7 +39,7 @@ export function OpportunityCard({ icon, title, finding, suggestion, impact, seve
 
   return (
     <div className={twMerge("rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm shadow-md overflow-hidden flex flex-col", className)}>
-      <div className="p-5 border-b border-white/10 bg-gradient-to-r from-white/5 to-transparent flex items-center gap-3">
+      <div className="p-5 border-b border-white/10 bg-gradient-to-r from-white/5 to-transparent flex flex-wrap items-center gap-3">
         <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10 text-leaf-400">
           {icon ?? (
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -69,11 +69,11 @@ export function OpportunityCard({ icon, title, finding, suggestion, impact, seve
         </div>
       </div>
 
-      <div className="px-5 pb-5 mt-auto flex gap-3">
+      <div className="px-5 pb-5 mt-auto flex flex-col sm:flex-row gap-3">
         {detailsHref && (
           <a
             href={detailsHref}
-            className="bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 px-4 py-2.5 rounded-lg transition-all duration-200"
+            className="bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 px-4 py-3 sm:py-2.5 rounded-lg transition-all duration-200 w-full sm:w-auto text-center"
           >
             Detayları İncele
           </a>
@@ -81,12 +81,12 @@ export function OpportunityCard({ icon, title, finding, suggestion, impact, seve
         {filteredHref && (
           <a
             href={filteredHref}
-            className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-4 py-2.5 rounded-lg transition-all duration-200"
+            className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-4 py-3 sm:py-2.5 rounded-lg transition-all duration-200 w-full sm:w-auto text-center"
           >
             {filteredLabel || 'Detayları Filtreli Aç'}
           </a>
         )}
-        <div className="ml-auto">
+        <div className="w-full sm:w-auto sm:ml-auto">
           {onHide ? (
             <Button
               variant="ghost"

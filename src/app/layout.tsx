@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { Viewport } from 'next';
 import { createClient } from '@/lib/server';
 import { Header } from '@/components/Header';
 import { SkipLink } from '@/components/SkipLink';
@@ -39,5 +40,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     </html>
   );
 }
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover'
+};
 
 

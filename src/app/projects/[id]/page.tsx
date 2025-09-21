@@ -136,7 +136,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
               <p className="text-white/70 max-w-2xl">{project.description || 'Bu proje için henüz bir açıklama girilmemiş.'}</p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {/* Primary CTA: Günlükler */}
               <Link
                 href={`/projects/${project.id}/daily-logs`}
@@ -305,7 +305,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
         </div>
       </section>
   {/* Kayıtlar Başlığı ve Filtreleme */}
-  <div id="entries" className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-6 shadow-md scroll-mt-24">
+  <div id="filters" className="rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-6 shadow-md scroll-mt-24">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-md bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
@@ -447,13 +447,12 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
               );
             })()}
             
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <button 
-                className="bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500 px-4 py-2 rounded-lg text-white transition-all duration-300 shadow-md hover:shadow-lg"
+                className="btn-primary w-full sm:w-auto"
               >
                 Filtreleri Uygula
               </button>
-              
               <div className="flex items-center gap-2">
                 <span className="text-white/70 text-sm">Toplam CO₂e:</span>
                 <span className="text-lg font-semibold highlight-text">{(() => { const v = (totalsList.reduce((s: number, r: any) => s + (Number(r.co2e_value) || 0), 0) || 0); const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}</span>
