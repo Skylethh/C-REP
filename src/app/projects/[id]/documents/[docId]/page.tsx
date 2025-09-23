@@ -215,7 +215,7 @@ export default async function DocumentDetailPage({ params, searchParams }: { par
                 {canPreview && signed && (
                   <div className="mt-3">
                     {r.mime?.startsWith('image/') ? (
-                      // eslint-disable-next-line @next/next/no-img-element
+                       
                       <img src={signed} alt={`Rev ${r.rev_no}`} className="max-h-96 rounded border border-white/10" />
                     ) : (
                       <iframe src={signed} className="w-full h-96 rounded border border-white/10" />

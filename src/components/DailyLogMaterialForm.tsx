@@ -29,7 +29,7 @@ export function DailyLogMaterialForm({ activities, action }: { activities: Activ
     } else {
       setUnit("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [activityId]);
 
   return (

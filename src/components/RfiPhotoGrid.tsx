@@ -97,7 +97,7 @@ export function RfiPhotoGrid({ keys, projectId, rfiId }: { keys: string[]; proje
               {/* Thumbnail */}
               <div className="relative flex-shrink-0">
                 {it.url ? (
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <img src={it.url} alt={it.name} className="w-16 h-16 object-cover rounded-lg border border-white/20" />
                 ) : (
                   <div className="w-16 h-16 flex items-center justify-center bg-white/10 rounded-lg border border-white/20">
@@ -173,7 +173,7 @@ export function RfiPhotoGrid({ keys, projectId, rfiId }: { keys: string[]; proje
               </div>
             </div>
             <div className="p-4 max-h-[calc(90vh-100px)] overflow-auto">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              { }
               <img src={viewing.url} alt={viewing.name} className="max-w-full h-auto mx-auto rounded" />
             </div>
           </div>

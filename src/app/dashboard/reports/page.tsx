@@ -22,9 +22,12 @@ export default function ReportsPage() {
   const [preview, setPreview] = useState<string>('Seçilen aralıkta — kayıt bulundu. Toplam Emisyon: — tCO2e');
   const [previewLoading, setPreviewLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [queueInfo, setQueueInfo] = useState<{ jobId: string } | null>(null);
+  const [queueStatus, setQueueStatus] = useState<string | null>(null);
   const [kpi, setKpi] = useState<{ totalEmissions: number; entryCount: number; topSource: string | null; anomalyCount?: number; summary?: string } | null>(null);
   const [customTitle, setCustomTitle] = useState<string>("");
   const [series, setSeries] = useState<Array<{ label: string; value: number }>>([]);
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null);
 
   const onGenerate = async () => {
     if (!projectId || !dateStart || !dateEnd) {
@@ -36,8 +39,26 @@ export default function ReportsPage() {
       const res = await fetch('/api/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, dateStart, dateEnd, type: typeFilter, scope: scopeFilter, projectName: projectLabelById(projectId) || undefined, title: (customTitle || autoTitle) })
+        body: JSON.stringify({ projectId, dateStart, dateEnd, type: typeFilter, scope: scopeFilter, projectName: projectLabelById(projectId) || undefined, title: (customTitle || autoTitle), logoDataUrl: logoDataUrl || undefined })
       });
+      if (res.status === 202) {
+        // queued large report
+        const j = await res.json();
+        if (j?.jobId) {
+          setQueueInfo({ jobId: j.jobId });
+          setQueueStatus('Rapor kuyruğa alındı, hazırlanıyor…');
+          // Start polling for completion
+          pollJobUntilReady(j.jobId, (signedUrl?: string) => {
+            if (signedUrl) {
+              downloadFromUrl(signedUrl, (customTitle || autoTitle) || projectLabelById(projectId) || `Proje_${projectId}`);
+            } else {
+              // Fallback: refresh archive list; user can download from there
+              setQueueStatus('Rapor hazırlandı. Arşivde görüntüleyebilirsiniz.');
+            }
+          });
+          return; // don't proceed to blob download path
+        }
+      }
       if (!res.ok) {
         let detail = '';
         let phaseHint = '';
@@ -55,19 +76,80 @@ export default function ReportsPage() {
       }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-      a.href = url;
-  const safeName = ((customTitle || autoTitle) || projectLabelById(projectId) || `Proje_${projectId}`).replace(/[^a-zA-Z0-9-_]+/g, '_');
-    a.download = `${safeName}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadFromObjectUrl(url, (customTitle || autoTitle) || projectLabelById(projectId) || `Proje_${projectId}`);
     } catch (e: any) {
       console.error(e);
       alert(e?.message || 'Rapor oluşturma sırasında bir hata oluştu.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  function downloadFromObjectUrl(url: string, baseName: string) {
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = (baseName || 'Rapor').replace(/[^a-zA-Z0-9-_]+/g, '_');
+    a.download = `${safeName}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadFromUrl(url: string, baseName: string) {
+    const a = document.createElement('a');
+    a.href = url;
+    const safeName = (baseName || 'Rapor').replace(/[^a-zA-Z0-9-_]+/g, '_');
+    a.download = `${safeName}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  async function pollJobUntilReady(jobId: string, onReady: (signedUrl?: string) => void) {
+    let attempts = 0;
+    const maxAttempts = 60; // ~5 minutes @ 5s
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    while (attempts < maxAttempts) {
+      try {
+        const res = await fetch(`/api/report-jobs/${jobId}`);
+        if (res.ok) {
+          const j = await res.json();
+          if (j?.status === 'complete') {
+            setQueueStatus('Rapor hazırlandı. İndiriliyor…');
+            onReady(j?.signedUrl || undefined);
+            setTimeout(() => setQueueStatus(null), 5000);
+            return;
+          } else if (j?.status === 'failed') {
+            setQueueStatus(`Rapor üretimi başarısız: ${j?.error || 'bilinmeyen hata'}`);
+            return;
+          } else {
+            setQueueStatus('Rapor kuyruğa alındı, hazırlanıyor…');
+          }
+        }
+      } catch (err) {
+        console.warn('Job poll failed', err);
+      }
+      attempts++;
+      await delay(5000);
+    }
+    setQueueStatus('Rapor üretimi zaman aşımına uğradı. Lütfen daha sonra Arşiv’i kontrol edin.');
+  }
+
+  const setShortcut = (key: 'lastMonth' | 'thisYear' | 'ytd') => {
+    const now = new Date();
+    if (key === 'lastMonth') {
+      const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      d.setUTCMonth(d.getUTCMonth() - 1);
+      const start = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1));
+      const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0));
+      const iso = (x: Date) => x.toISOString().slice(0, 10);
+      setDateStart(iso(start)); setDateEnd(iso(end));
+    } else if (key === 'thisYear' || key === 'ytd') {
+      const start = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
+      const end = key === 'thisYear' ? new Date(Date.UTC(now.getUTCFullYear(), 11, 31)) : now;
+      const iso = (x: Date) => x.toISOString().slice(0, 10);
+      setDateStart(iso(start)); setDateEnd(iso(end));
     }
   };
 
@@ -187,6 +269,30 @@ export default function ReportsPage() {
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
         <h1 className="text-xl font-semibold mb-4">Rapor Oluştur</h1>
         <div className="grid gap-4">
+          {/* Brand logo upload/select */}
+          <div className="rounded-lg bg-white/5 border border-white/10 p-3">
+            <div className="text-xs text-white/60 mb-1">Şirket Logosu (PDF'te kullanılacak)</div>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                accept="image/png, image/jpeg"
+                onChange={async (e) => {
+                  const f = e.target.files?.[0];
+                  if (!f) { setLogoDataUrl(null); return; }
+                  const reader = new FileReader();
+                  reader.onload = () => setLogoDataUrl(String(reader.result || ''));
+                  reader.readAsDataURL(f);
+                }}
+                className="text-sm"
+              />
+              {logoDataUrl && (
+                <img src={logoDataUrl} alt="logo preview" className="h-8 rounded border border-white/15" />
+              )}
+              {!logoDataUrl && (
+                <div className="text-xs text-white/50">Organizasyon logosu varsayılan olarak kullanılacaktır.</div>
+              )}
+            </div>
+          </div>
           <div className="rounded-lg bg-white/5 border border-white/10 p-3">
             <div className="text-xs text-white/60 mb-1">Rapor Başlığı</div>
             <input
@@ -225,6 +331,11 @@ export default function ReportsPage() {
               to={dateEnd}
               onChange={(from, to) => { setDateStart(from); setDateEnd(to); }}
             />
+            <div className="mt-3 flex flex-wrap gap-2 text-xs">
+              <button className="px-2 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10" onClick={() => setShortcut('lastMonth')}>Geçen Ay</button>
+              <button className="px-2 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10" onClick={() => setShortcut('thisYear')}>Bu Yıl</button>
+              <button className="px-2 py-1 rounded bg-white/5 border border-white/10 hover:bg-white/10" onClick={() => setShortcut('ytd')}>Yıl Başından Bugüne</button>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
@@ -310,6 +421,11 @@ export default function ReportsPage() {
               {loading ? 'Oluşturuluyor…' : 'PDF Raporu Oluştur'}
             </Button>
           </div>
+          {queueStatus && (
+            <div className="mt-3 text-sm text-white/80 bg-white/5 border border-white/10 rounded-md p-3">
+              {queueStatus}
+            </div>
+          )}
         </div>
       </div>
       {/* Archive list */}

@@ -20,7 +20,6 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             value: (() => {
-              const isDev = process.env.NODE_ENV !== 'production';
               const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
               const supabaseOrigin = (() => {
                 try { return new URL(supabase).origin; } catch { return ''; }

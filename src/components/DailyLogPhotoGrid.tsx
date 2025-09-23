@@ -74,7 +74,7 @@ export function DailyLogPhotoGrid({ projectId, logId, keys }: { projectId: strin
         return (
           <div key={path} className="rounded border border-white/10 bg-white/5 overflow-hidden">
             <div className="relative">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              { }
               <img src={urls[path]} alt={name} className="w-full h-32 object-cover" />
               <button disabled={!!busy[path]} onClick={() => remove(path)} className="absolute top-1 right-1 text-xs px-2 py-1 rounded bg-red-600/80">Sil</button>
             </div>

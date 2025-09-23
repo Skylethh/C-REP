@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { renderToBuffer, Font } from '@react-pdf/renderer';
+import { renderToBuffer, renderToStream, Font } from '@react-pdf/renderer';
 import ReportDocument from '../../../components/reports/ReportDocument';
 import { createClient } from '@/lib/server';
 import { generateReportTitle } from '@/lib/utils';
@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import pkg from '../../../../package.json' assert { type: 'json' };
 import crypto from 'node:crypto';
+import { Readable } from 'node:stream';
 
 export const runtime = 'nodejs'; // ensure Node runtime for buffer rendering
 
@@ -19,6 +20,7 @@ type Body = {
   type?: string;
   scope?: string;
   title?: string;
+  logoDataUrl?: string; // optional data URL uploaded by user
 };
 export async function POST(req: NextRequest) {
   let phase: string = 'init';
@@ -145,7 +147,10 @@ export async function POST(req: NextRequest) {
     // Pre-fetch logo and embed as data URL to avoid network fetch during PDF render
     phase = 'embed-logo';
     let embeddedLogo: string | undefined = undefined;
-    if (logoUrl) {
+    // Prefer user-provided data URL if present
+    if (typeof body.logoDataUrl === 'string' && body.logoDataUrl.startsWith('data:')) {
+      embeddedLogo = body.logoDataUrl;
+    } else if (logoUrl) {
       try {
         const resp = await fetch(logoUrl);
         if (resp.ok) {
@@ -175,7 +180,7 @@ export async function POST(req: NextRequest) {
     if (dateEnd) q.lte('date', dateEnd);
     if (body.type && ['energy','transport','materials','other'].includes(body.type)) q.eq('type', body.type);
     if (body.scope && ['scope1','scope2','scope3'].includes(body.scope)) q.eq('scope', body.scope);
-    const { data, count } = await q;
+  const { data, count } = await q;
     const totalEmissions = (data || []).reduce((sum, r) => sum + (Number((r as any).co2e_value) || 0), 0);
     const byType = (data || []).reduce<Record<string, number>>((acc, r) => {
       const t = (r as any).type || 'other';
@@ -230,7 +235,7 @@ export async function POST(req: NextRequest) {
       co2e_value: Number(r.co2e_value) || 0,
     }));
 
-    phase = 'render';
+  phase = 'render';
     // Create a lightweight report identifier for traceability (not globally unique but good enough for user context)
     const nowIso = new Date().toISOString();
     const reportId = `${projectId}-${nowIso.replace(/[^0-9]/g, '').slice(0, 14)}`;
@@ -246,7 +251,60 @@ export async function POST(req: NextRequest) {
       charts: { byScope, byCategory },
     });
     const checksum = crypto.createHash('sha256').update(digestInput).digest('hex');
-    const buffer = await renderToBuffer(
+    const reportTitle = body.title || generateReportTitle(effectiveProjectName, { from: dateStart, to: dateEnd });
+    const safeName = reportTitle.replace(/[^a-zA-Z0-9-_]+/g, '_');
+    const fileName = `${safeName}.pdf`;
+
+    // If too many rows, queue a background job instead of rendering inline
+    const totalRows = count ?? (data?.length || 0);
+    const BIG_REPORT_THRESHOLD = Number(process.env.REPORT_BIG_THRESHOLD || 500);
+    if (totalRows > BIG_REPORT_THRESHOLD) {
+      phase = 'queue-job';
+      try {
+        const { data: authData } = await supabase.auth.getUser();
+        const userId = authData?.user?.id || null;
+        const { data: job } = await supabase
+          .from('report_jobs')
+          .insert({
+            project_id: projectId,
+            title: reportTitle,
+            date_start: dateStart,
+            date_end: dateEnd,
+            scope: body.scope || null,
+            type: body.type || null,
+            logo_data_url: (typeof body.logoDataUrl === 'string' ? body.logoDataUrl : null),
+            status: 'pending',
+            created_by: userId,
+          })
+          .select('id')
+          .single();
+        // Fire-and-forget: trigger background processing API with same auth cookies
+        try {
+          const origin = req.nextUrl.origin;
+          const url = `${origin}/api/report-jobs/process`;
+          const cookieHeader = req.headers.get('cookie') || '';
+          // Don’t await; let it run independently
+          void fetch(url, {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/json',
+              ...(cookieHeader ? { cookie: cookieHeader } : {}),
+            },
+            body: JSON.stringify({ jobId: job?.id }),
+          }).catch(() => {});
+        } catch {}
+        return new Response(JSON.stringify({ status: 'queued', jobId: job?.id || null }), {
+          status: 202,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      } catch (e) {
+        // If queue fails, fallback to streaming inline to avoid blocking user
+        console.warn('Queue job failed, falling back to inline render', e);
+      }
+    }
+
+    // Render small/normal reports as a stream for faster perceived delivery
+    const nodeStream = await renderToStream(
       <ReportDocument
         projectName={effectiveProjectName}
         dateStart={dateStart}
@@ -262,14 +320,7 @@ export async function POST(req: NextRequest) {
         checksum={checksum}
       />
     );
-  // Convert Buffer -> pure ArrayBuffer (avoid SharedArrayBuffer union)
-  const copy = new Uint8Array(buffer.byteLength);
-  copy.set(buffer);
-  const arrayBuffer: ArrayBuffer = copy.buffer;
-
-  const reportTitle = body.title || generateReportTitle(effectiveProjectName, { from: dateStart, to: dateEnd });
-  const safeName = reportTitle.replace(/[^a-zA-Z0-9-_]+/g, '_');
-  const fileName = `${safeName}.pdf`;
+    const webStream = Readable.toWeb(nodeStream as any) as unknown as ReadableStream;
 
     // Archive: upload to storage and insert DB row (best-effort; failure shouldn't block download)
     try {
@@ -282,16 +333,39 @@ export async function POST(req: NextRequest) {
   // Keep bucket name as first path segment to satisfy extract_project_from_path(name)
   const baseKey = `project-reports/${projectId}/${ts}_${safeName}.pdf`;
       const bucket = 'project-reports';
-      let storageKey = baseKey;
+  let storageKey = baseKey;
       let uploaded = false;
       let attempts = 0;
+  let uploadedSize = 0;
       // Try up to 2 attempts to avoid name collision
       while (!uploaded && attempts < 2) {
         phase = 'archive-upload';
-        const { error: upErr } = await supabase.storage.from(bucket).upload(storageKey, arrayBuffer, {
+        // Re-render to buffer specifically for archive upload (small reports only)
+        let buf: Buffer | null = null;
+        try {
+          buf = await renderToBuffer(
+            <ReportDocument
+              projectName={effectiveProjectName}
+              dateStart={dateStart}
+              dateEnd={dateEnd}
+              reportTitle={body.title || undefined}
+              logoUrl={embeddedLogo || undefined}
+              kpis={kpis}
+              entries={entries}
+              charts={{ byScope, byCategory, byMonth }}
+              filters={{ type: body.type, scope: body.scope }}
+              appVersion={pkg?.version || undefined}
+              reportId={reportId}
+              checksum={checksum}
+            />
+          );
+        } catch {}
+        const payload = buf ? new Uint8Array(buf).buffer : new TextEncoder().encode('PDF unavailable').buffer;
+        const { error: upErr } = await supabase.storage.from(bucket).upload(storageKey, payload, {
           contentType: 'application/pdf',
           upsert: false,
         });
+        if (!upErr) uploadedSize = buf?.byteLength || 0;
         if (upErr) {
           // If already exists, add suffix and retry once
           if ((upErr as any)?.message?.toLowerCase?.().includes('already exists') && attempts === 0) {
@@ -308,7 +382,7 @@ export async function POST(req: NextRequest) {
         phase = 'archive-insert';
         // Store path with bucket prefix for consistency with other modules (e.g., documents)
         const file_path = `${bucket}/${storageKey.replace(/^project-reports\//, '')}`;
-        const sz = buffer.byteLength;
+  const sz = uploadedSize || digestInput.length;
         await supabase.from('generated_reports').insert({
           project_id: projectId,
           title: reportTitle,
@@ -330,7 +404,7 @@ export async function POST(req: NextRequest) {
     }
 
     phase = 'respond';
-    return new Response(arrayBuffer as any, {
+    return new Response(webStream as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
