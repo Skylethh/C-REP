@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
     // Try to ensure a Turkish-capable font is available
     phase = 'load-fonts';
     try {
+      let didRegister = false;
       const customFontEnabled = String(process.env.REPORT_PDF_CUSTOM_FONT || '')
         .trim()
         .toLowerCase() === 'true';
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
         }
         if (fonts.length) {
           Font.register({ family: 'TRFont', fonts });
+          didRegister = true;
         }
       } else if (process.platform === 'win32') {
         // Automatic fallback on Windows: use installed system fonts if present
@@ -73,7 +75,46 @@ export async function POST(req: NextRequest) {
         }
         if (fonts.length) {
           Font.register({ family: 'TRFont', fonts });
+          didRegister = true;
         }
+      }
+
+      // Fallback 1: Try local public files if bundled alongside the server (may not exist on serverless FS)
+      if (!didRegister) {
+        const regularLocal = toAbsPath('public/fonts/segoeui.ttf');
+        const boldLocal = toAbsPath('public/fonts/segoeuib.ttf');
+        const fonts = [] as Array<{ src: string; fontWeight?: number }>;
+        if (fs.existsSync(regularLocal)) fonts.push({ src: regularLocal });
+        if (fs.existsSync(boldLocal)) fonts.push({ src: boldLocal, fontWeight: 700 });
+        if (fonts.length) {
+          Font.register({ family: 'TRFont', fonts });
+          didRegister = true;
+        }
+      }
+
+      // Fallback 2: Same-origin URLs to public assets (works on Netlify where public assets are hosted separately)
+      if (!didRegister) {
+        try {
+          const origin = req.nextUrl.origin;
+          const fonts = [
+            { src: `${origin}/fonts/segoeui.ttf` },
+            { src: `${origin}/fonts/segoeuib.ttf`, fontWeight: 700 },
+          ];
+          Font.register({ family: 'TRFont', fonts });
+          didRegister = true;
+        } catch {}
+      }
+
+      // Fallback 3: Open-licensed DejaVu fonts from a reliable CDN
+      if (!didRegister) {
+        try {
+          const fonts = [
+            { src: 'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts-ttf@2.37/ttf/DejaVuSans.ttf' },
+            { src: 'https://cdn.jsdelivr.net/gh/dejavu-fonts/dejavu-fonts-ttf@2.37/ttf/DejaVuSans-Bold.ttf', fontWeight: 700 },
+          ];
+          Font.register({ family: 'TRFont', fonts });
+          didRegister = true;
+        } catch {}
       }
     } catch {
       // If font loading fails, continue with defaults; text may degrade for some glyphs

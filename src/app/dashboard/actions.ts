@@ -1,6 +1,7 @@
 "use server";
 import { createClient } from '@/lib/server';
 import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 
@@ -100,21 +101,31 @@ export async function updateProject(_prev: any, formData: FormData) {
   }
 }
 
-export async function deleteProject(formData: FormData) {
+export async function deleteProject(_prev: any, formData: FormData) {
   try {
     const id = String(formData.get('id') || '');
     if (!id) return { ok: false, error: 'Geçersiz proje id' };
+    const redirectToRaw = String(formData.get('redirectTo') || '');
+    // Only allow same-site absolute paths like "/projects" or "/dashboard?tab=x"
+    const safeRedirect = redirectToRaw && redirectToRaw.startsWith('/') ? redirectToRaw : '';
 
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { ok: false, error: 'Giriş yapmanız gerekiyor' };
 
+    // Deleting a project may cascade delete related rows (depending on FKs) and audit triggers
+    // will try to insert into audit_logs. Ensure audit_logs has an insert policy that allows
+    // authenticated users to insert (see db/migrations/053_* and 062_*). Otherwise a RLS error may occur.
     const { error } = await supabase
       .from('projects')
       .delete()
       .eq('id', id);
     if (error) return { ok: false, error: error.message || 'Proje silinemedi' };
     revalidatePath('/dashboard');
+    if (safeRedirect) {
+      // Navigate away immediately to avoid showing a not-found on the deleted project's page
+      redirect(safeRedirect as any);
+    }
     return { ok: true };
   } catch (e: any) {
     return { ok: false, error: e?.message || 'Beklenmeyen bir hata oluştu' };

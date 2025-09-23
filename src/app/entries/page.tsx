@@ -138,7 +138,7 @@ export default async function EntriesListPage({ searchParams }: { searchParams?:
               <th className="text-left p-2">Miktar</th>
               <th className="text-left p-2">CO₂e</th>
               <th className="text-left p-2">Ekleyen</th>
-              <th className="text-right p-2 w-0">İşlemler</th>
+              <th className="text-right p-2 w-[96px]">İşlemler</th>
             </tr>
           </thead>
           <tbody>
@@ -162,22 +162,23 @@ export default async function EntriesListPage({ searchParams }: { searchParams?:
                 <td className="p-2">{e.amount} {e.unit}</td>
                 <td className="p-2">{(() => { const v = Number(e.co2e_value ?? 0); if (!isFinite(v) || v<=0) return '-'; const f = formatCo2eTons(v, 3); return `${f.value} ${f.unit}`; })()}</td>
                 <td className="p-2 whitespace-nowrap">{(() => { const m = membersByProject.get(e.project_id) || new Map(); const info = m.get(e.created_by) || null; if (!info) return '—'; return `${formatRole(info.role)}: ${emailToName(info.email)}`; })()}</td>
-                <td className="p-2">
+                <td className="p-2 w-[96px]">
                   <div className="flex items-center justify-end gap-1">
                     <Link
                       href={`/entries/${e.id}?from=entries` as any}
-                      className="px-2 py-1 rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-white/80 hover:text-white transition-colors"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-white/5 border border-white/10 hover:bg-white/10 text-white/85 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/20"
                       title="Görüntüle"
                     >
-                      <Eye size={14} />
+                      <Eye size={18} />
                     </Link>
                     <form action={deleteEntryAction}>
                       <input type="hidden" name="entryId" value={e.id} />
                       <ConfirmSubmitButton 
-                        className="px-2 py-1 rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 transition-colors"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400/30"
                         message="Bu aktiviteyi silmek istediğinize emin misiniz?"
+                        aria-label="Sil"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={18} />
                       </ConfirmSubmitButton>
                     </form>
                   </div>
