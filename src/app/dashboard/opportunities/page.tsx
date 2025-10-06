@@ -72,8 +72,8 @@ export default async function OpportunitiesDashboardPage({ searchParams }: { sea
 
   return (
     <div className="space-y-6">
-      <header className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-900/40 via-ocean-900/30 to-transparent border border-white/10 shadow-lg">
-        <div className="absolute inset-0 bg-gradient-to-r from-leaf-500/5 to-ocean-500/5" />
+      <header className="relative rounded-2xl bg-gradient-to-br from-emerald-900/40 via-ocean-900/30 to-transparent border border-white/10 shadow-lg">
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-leaf-500/5 to-ocean-500/5" />
         <div className="relative p-6 md:p-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
             <div className="space-y-2">
@@ -83,6 +83,9 @@ export default async function OpportunitiesDashboardPage({ searchParams }: { sea
               </p>
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+              <span className="text-xs font-medium uppercase tracking-wide text-white/60 sm:text-right">
+                Projenizi seçin
+              </span>
               <ProjectSelector projects={projects} activeProjectId={activeProject.id} className="w-full sm:w-[260px]" />
               <Link
                 href={`/projects/${activeProject.id}`}
