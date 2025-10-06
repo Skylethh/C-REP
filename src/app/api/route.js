@@ -4,6 +4,7 @@ import Groq from "groq-sdk";
 
 // This endpoint runs on the server; access env vars directly.
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+export const runtime = 'nodejs';
 
 export async function POST(req) {
   const { prompt } = await req.json();
