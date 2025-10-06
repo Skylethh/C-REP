@@ -1,64 +1,119 @@
 import { describe, it, expect } from 'vitest';
-import { Opportunity } from '@/lib/opportunities';
+import { generateOpportunitiesFromEntries, type OpportunityRuleEntry } from '@/lib/opportunities';
 
-// We will import private helpers by re-implementing minimal scenarios via public API where possible.
-// For speed, we simulate the rule logic using small helper functions embedded here mirroring the engine's behavior.
+const NOW = new Date('2025-10-06T00:00:00Z');
 
-type EntryLite = { co2e_value: number; category?: string | null; activities?: { key?: string | null } | null };
-
-function groupByCategory(entries: EntryLite[]) {
-  const map = new Map<string, number>();
-  for (const e of entries) {
-    const keyRaw = e.activities?.key || e.category || 'unknown';
-    const key = String(keyRaw);
-    const v = Number(e.co2e_value) || 0;
-    if (!v) continue;
-    map.set(key, (map.get(key) || 0) + v);
-  }
-  return map;
+let counter = 0;
+function makeEntry(partial: Partial<OpportunityRuleEntry>): OpportunityRuleEntry {
+  counter += 1;
+  return {
+    id: partial.id ?? `entry-${counter}`,
+    co2eKg: partial.co2eKg ?? 0,
+    date: partial.date ?? NOW,
+    rawCategory: partial.rawCategory ?? 'beton',
+    normalizedCategory: partial.normalizedCategory ?? 'beton',
+    amountTons: partial.amountTons ?? null,
+  };
 }
 
-function findTopCategoryShare(catMap: Map<string, number>) {
-  let topKey = '';
-  let topVal = 0;
-  let total = 0;
-  for (const [, v] of catMap) total += v;
-  for (const [k, v] of catMap) { if (v > topVal) { topVal = v; topKey = k; } }
-  const share = total > 0 ? topVal / total : 0;
-  return { topKey, topVal, total, share };
-}
-
-describe('Opportunities rules (unit)', () => {
-  it('high concentration triggers when a category exceeds 60%', () => {
-    const entries: EntryLite[] = [
-      { co2e_value: 600, category: 'concrete' },
-      { co2e_value: 100, category: 'steel_rebar' },
-      { co2e_value: 300, category: 'transport' },
+describe('Opportunities engine rules', () => {
+  it('creates a concentration opportunity when a category exceeds 50% of emissions', () => {
+    const entries: OpportunityRuleEntry[] = [
+      makeEntry({ co2eKg: 600, rawCategory: 'concrete_c25_30', normalizedCategory: 'concrete_c25_30' }),
+      makeEntry({ co2eKg: 100, rawCategory: 'steel_rebar', normalizedCategory: 'steel_rebar' }),
+      makeEntry({ co2eKg: 200, rawCategory: 'transport', normalizedCategory: 'transport' }),
     ];
-    const cat = groupByCategory(entries);
-    const { topKey, share } = findTopCategoryShare(cat);
-    expect(topKey).toBe('concrete');
-    expect(share).toBeCloseTo(0.6, 2); // exactly 60%
+
+    const opps = generateOpportunitiesFromEntries(entries, NOW);
+    const concentration = opps.find((o) => o.type === 'CONCENTRATION');
+    expect(concentration).toBeDefined();
+    expect((concentration?.metadata as any)?.percentage).toBeGreaterThan(50);
   });
 
-  it('self-benchmark detects >20% increase', () => {
-    const prev30 = 1000; // kg
-    const last30 = 1300; // kg
-    const increase = last30 - prev30;
-    const ratio = increase / prev30;
-    expect(ratio).toBe(0.3);
-    expect(ratio > 0.2).toBe(true);
+  it('detects upward emission trend greater than 20%', () => {
+    const entries: OpportunityRuleEntry[] = [
+      makeEntry({ co2eKg: 500, date: new Date('2025-09-20T00:00:00Z'), rawCategory: 'beton', normalizedCategory: 'beton' }),
+      makeEntry({ co2eKg: 400, date: new Date('2025-09-25T00:00:00Z'), rawCategory: 'beton', normalizedCategory: 'beton' }),
+      makeEntry({ co2eKg: 250, date: new Date('2025-08-18T00:00:00Z'), rawCategory: 'beton', normalizedCategory: 'beton' }),
+      makeEntry({ co2eKg: 200, date: new Date('2025-08-28T00:00:00Z'), rawCategory: 'beton', normalizedCategory: 'beton' }),
+    ];
+
+    const opps = generateOpportunitiesFromEntries(entries, NOW);
+    const trend = opps.find((o) => o.type === 'TREND_INCREASE');
+    expect(trend).toBeDefined();
+    expect((trend?.metadata as any)?.increase_percentage).toBeGreaterThanOrEqual(20);
   });
 
-  it('rebar alternative triggers with significant share or absolute threshold', () => {
-    const entries: EntryLite[] = [
-      { co2e_value: 5000, category: 'steel_rebar' },
-      { co2e_value: 10000, category: 'concrete' },
+  it('flags anomalies that sit above mean + 3*std for a category', () => {
+    const baseDates = [
+      new Date('2025-09-01T00:00:00Z'),
+      new Date('2025-09-03T00:00:00Z'),
+      new Date('2025-09-05T00:00:00Z'),
+      new Date('2025-09-07T00:00:00Z'),
+      new Date('2025-09-09T00:00:00Z'),
+      new Date('2025-09-11T00:00:00Z'),
+      new Date('2025-09-13T00:00:00Z'),
+      new Date('2025-09-15T00:00:00Z'),
+      new Date('2025-09-17T00:00:00Z'),
     ];
-    const cat = groupByCategory(entries);
-    const total = Array.from(cat.values()).reduce((s, v) => s + v, 0);
-    const rebar = cat.get('steel_rebar') || 0;
-    const isSignificant = rebar >= 2000 || (total > 0 && (rebar / total) >= 0.1);
-    expect(isSignificant).toBe(true);
+    const values = [95, 102, 98, 105, 97, 101, 99, 96, 820];
+    const entries = values.map((value, idx) => makeEntry({
+      co2eKg: value,
+      date: baseDates[idx],
+      rawCategory: 'beton c25',
+      normalizedCategory: 'beton_c25',
+    }));
+
+    const opps = generateOpportunitiesFromEntries(entries, NOW);
+    const anomaly = opps.find((o) => o.type === 'ANOMALY_DETECTED');
+    expect(anomaly).toBeDefined();
+    expect((anomaly?.metadata as any)?.ratio).toBeGreaterThan(3);
+  });
+
+  it('emits a best practice tip when steel usage exceeds 10 tons', () => {
+    const entries: OpportunityRuleEntry[] = [
+      makeEntry({ co2eKg: 1500, rawCategory: 'steel_rebar', normalizedCategory: 'steel_rebar', amountTons: 11 }),
+      makeEntry({ co2eKg: 400, rawCategory: 'concrete', normalizedCategory: 'concrete' }),
+    ];
+
+    const opps = generateOpportunitiesFromEntries(entries, NOW);
+    const tip = opps.find((o) => o.type === 'BEST_PRACTICE_TIP');
+    expect(tip).toBeDefined();
+    expect((tip?.metadata as any)?.total_tons).toBeGreaterThanOrEqual(10);
+    expect(tip?.ruleId).toBe('best_practice_tip');
+    expect(tip?.opportunityKey).toBe('best_practice:steel');
+  });
+
+  it('assigns stable identifiers for generated opportunities', () => {
+    const entries: OpportunityRuleEntry[] = [
+      makeEntry({ co2eKg: 600, rawCategory: 'concrete_c25', normalizedCategory: 'concrete_c25' }),
+      makeEntry({ co2eKg: 100, rawCategory: 'steel_rebar', normalizedCategory: 'steel_rebar' }),
+      makeEntry({ co2eKg: 300, rawCategory: 'transport', normalizedCategory: 'transport' }),
+      makeEntry({ co2eKg: 500, date: new Date('2025-09-20T00:00:00Z'), rawCategory: 'beton', normalizedCategory: 'beton' }),
+      makeEntry({ co2eKg: 400, date: new Date('2025-09-25T00:00:00Z'), rawCategory: 'beton', normalizedCategory: 'beton' }),
+      makeEntry({ co2eKg: 250, date: new Date('2025-08-18T00:00:00Z'), rawCategory: 'beton', normalizedCategory: 'beton' }),
+      makeEntry({ co2eKg: 200, date: new Date('2025-08-28T00:00:00Z'), rawCategory: 'beton', normalizedCategory: 'beton' }),
+      ...[95, 102, 98, 105, 97, 101, 99, 96].map((value, idx) => makeEntry({
+        co2eKg: value,
+        date: new Date(`2025-09-${String(idx * 2 + 1).padStart(2, '0')}T00:00:00Z`),
+        rawCategory: 'beton c25',
+        normalizedCategory: 'beton_c25',
+      })),
+      makeEntry({
+        co2eKg: 820,
+        date: new Date('2025-09-21T00:00:00Z'),
+        rawCategory: 'beton c25',
+        normalizedCategory: 'beton_c25',
+      }),
+      makeEntry({ co2eKg: 1500, rawCategory: 'steel_rebar', normalizedCategory: 'steel_rebar', amountTons: 12 }),
+    ];
+
+    const opps = generateOpportunitiesFromEntries(entries, NOW);
+    expect(opps.length).toBeGreaterThan(0);
+    const keys = opps.map((op) => op.opportunityKey);
+    const rules = opps.map((op) => op.ruleId);
+    expect(keys.every((key) => typeof key === 'string' && key.length > 0)).toBe(true);
+    expect(rules.every((rule) => typeof rule === 'string' && rule.length > 0)).toBe(true);
+    expect(new Set(keys).size).toBe(keys.length);
   });
 });

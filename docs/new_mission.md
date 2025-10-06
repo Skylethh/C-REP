@@ -1,83 +1,103 @@
-Feature Brief: "Fırsatlar" (Opportunities) Page - The AI-Powered Advisory Module
-1. Objective
-The goal is to build the "Fırsatlar" page, a proactive advisory module for the C-REP application. This feature will analyze the user's project data to identify potential areas for carbon emission reduction and cost savings. It will transform the application from a passive reporting tool into an active consultant, helping users make smarter, more sustainable, and more cost-effective decisions.
+Özellik Geliştirme Rehberi: "Fırsatlar" Sayfası - Faz 1 (Kural Tabanlı Motor)
+1. Amaç
+Bu geliştirmenin amacı, "Fırsatlar" sayfasının MVP (Minimum Uygulanabilir Ürün) versiyonunu inşa etmektir. Bu özellik, harici bir AI API'si kullanmayacaktır. Bunun yerine, bir projenin veritabanındaki verilerini analiz eden ve kullanıcıya proaktif olarak eyleme geçirilebilir içgörüler ve potansiyel sorunları sunan, sunucu tarafında çalışan, kural tabanlı bir motor olacaktır.
 
-2. Guiding Principles & Phased Approach
-User-Friendliness: The insights must be presented in a simple, visual, and easily understandable way. The user should not be overwhelmed with raw data, but with clear, actionable advice.
+2. Arka Uç (Backend) Mantığı: opportunitiesEngine Fonksiyonu
+Projenin beyni bu fonksiyon olacak.
 
-Phased Implementation: We will start with a simple, rule-based engine for the MVP (Minimum Viable Product) and then enhance it with more complex AI (LLMs) in a later version.
+Görev: src/lib/opportunities.ts içinde analyzeProjectForOpportunities(projectId) adında yeni bir sunucu tarafı fonksiyonu oluştur.
 
-3. Phase 1: Rule-Based MVP (Implement This Now)
-The core of the MVP will be a local, server-side function that analyzes data and does not require external AI API calls.
+Copilot için Talimatlar:
 
-Step 3.1: Create the 'Opportunities Engine' Logic
-Task: Create a server-side function that acts as a simple, rule-based suggestion engine.
+Bu fonksiyon, projectId'yi argüman olarak alacak ve bir Opportunity nesneleri dizisi (array) döndürecektir.
 
-Instructions for Copilot:
+Fonksiyon, ilk olarak verilen projectId için Supabase veritabanındaki tüm emission_entries kayıtlarını çekmelidir.
 
-Create a new file at src/lib/opportunities.ts.
+Ardından, bu veri seti üzerinde aşağıda tanımlanan bir dizi kural kontrolü çalıştırmalıdır. Bir kural tetiklendiğinde, ilgili Opportunity nesnesini oluşturup sonuç dizisine eklemelidir.
 
-Create a main function, e.g., analyzeProjectForOpportunities(projectId).
+Uygulanacak Kurallar:
+Kural 1: Yüksek Yoğunlaşma Kuralı
 
-This function will:
-a.  Fetch all relevant data for the given projectId from Supabase (all emission_entries).
-b.  Run a series of pre-defined rule checks on this data.
-c.  Return an array of "opportunity" objects if any of the rules are triggered.
+Mantık: Eğer tek bir category'den (örn: 'concrete_c25_30') gelen emisyonların toplamı, projenin toplam emisyonlarının %50'sinden fazlaysa bir fırsat oluştur.
 
-Implement the following initial rules:
+Örnek Çıktı Nesnesi:
 
-High Concentration Rule: Check if any single category (e.g., "Concrete") constitutes more than 60% of the total emissions. If so, generate an opportunity object for material alternatives.
+TypeScript
 
-Self-Benchmarking Rule: Compare the total emissions of the last 30 days to the 30 days prior. If there is a significant increase (e.g., >20%), generate an opportunity object flagging this trend.
+{ 
+  type: 'CONCENTRATION', 
+  title: 'Beton Emisyonu Yoğunlaşması', 
+  suggestion: 'Projenizin emisyonlarının %65\'i betondan geliyor. Düşük karbonlu alternatifleri araştırarak büyük bir etki yaratabilirsiniz.',
+  metadata: { category: 'concrete_c25_30', percentage: 65 }
+}
+Kural 2: Kendi Kendine Kıyaslama Kuralı (Trend Analizi)
 
-Material Alternative Rule (Static Tip): If the project uses a significant amount of standard "Nervürlü İnşaat Demiri", generate a static opportunity card explaining the benefits of using recycled steel.
+Mantık: Son 30 günün toplam emisyonları, bir önceki 30 günlük periyodun toplam emisyonlarından %20'den fazla ise bir fırsat oluştur.
 
-Step 3.2: Design the UI (/dashboard/opportunities/page.tsx)
-Task: Create the user interface to display the generated opportunities.
+Örnek Çıktı Nesnesi:
 
-Instructions for Copilot:
+TypeScript
 
-The page should have a clear title like "Proje Fırsatları" (Project Opportunities).
+{
+  type: 'TREND_INCREASE',
+  title: 'Son Dönemde Emisyon Artışı',
+  suggestion: 'Son 30 gündeki emisyonlarınız bir önceki döneme göre %25 arttı. Bu artışın kaynağını Raporlar sayfasından detaylı inceleyebilirsiniz.',
+  metadata: { increase_percentage: 25 }
+}
+Kural 3: Anomali Tespiti Kuralı (Veri Kalitesi)
 
-The main layout should be a grid of cards, with each card representing a single opportunity.
+Mantık: Belirli bir kategorideki (örn: tüm 'beton' kayıtları) emisyon değerlerinin ortalamasını ve standart sapmasını hesapla. Eğer tek bir kayıt, (ortalama + 3 * standart sapma) değerinden daha yüksekse, bunu bir anomali olarak işaretle.
 
-Create a reusable component: src/components/opportunities/OpportunityCard.tsx.
+Örnek Çıktı Nesnesi:
 
-Each OpportunityCard must have the following structure:
+TypeScript
 
-Header: An icon (e.g., a lightbulb 💡 or a leaf 🌿) and a clear, bold Title (e.g., "Beton Emisyonunu Düşürme Fırsatı").
+{
+  type: 'ANOMALY_DETECTED',
+  title: 'Potansiyel Hatalı Veri Girişi',
+  suggestion: '20 Eylül tarihli \'Beton C25\' kaydınız, projedeki diğer beton girişlerinin ortalamasından 10 kat daha yüksek görünüyor. Bir yazım hatası olabilir mi?',
+  metadata: { entry_id: '...' }
+}
+Kural 4: Statik İpucu Kuralı (En İyi Pratikler)
 
-"Tespit" (The Finding): A simple, data-backed sentence explaining what the system found. E.g., "Projenizin toplam emisyonunun %65'i betondan kaynaklanıyor."
+Mantık: Proje, belirli bir eşik değerden fazla malzeme kullandıysa (örn: toplamda 10 tondan fazla inşaat demiri), statik bir ipucu göster.
 
-"Öneri" (The Suggestion): A clear, actionable piece of advice. E.g., "Tedarikçinizle görüşerek düşük karbonlu beton seçeneklerini (örn: kalsine kil içeren) değerlendirin."
+Örnek Çıktı Nesnesi:
 
-"Potansiyel Etki" (Potential Impact): This is the most important part. Display the estimated savings. This can be a simple estimate in the MVP. E.g., "Tahmini Azaltım: -15 tCO2e". In the future, we can add an estimated financial saving (TL) here as well.
+TypeScript
 
-Action Buttons: At the bottom of the card, include buttons like: [Detayları İncele] (to see the related data) and [Gizle] (to dismiss the suggestion).
+{
+  type: 'BEST_PRACTICE_TIP',
+  title: 'Geri Dönüştürülmüş Malzeme Fırsatı',
+  suggestion: 'Projenizde çelik kullanımı yüksek. Tedarikçinizle görüşerek geri dönüştürülmüş çelik kullanma opsiyonlarını değerlendirdiniz mi? Bu, malzemenin gömülü karbonunu %70\'e kadar azaltabilir.',
+  metadata: { material: 'steel' }
+}
+3. Opportunity Tipi (TypeScript)
+Tutarlılık için, opportunities.ts dosyasının en başında Opportunity nesnesinin tip tanımını yap:
 
-4. Phase 2: AI (LLM) Enhancements (Future Vision)
-This is how we will make the feature truly "intelligent" after the MVP is successful.
+TypeScript
 
-Step 4.1: AI-Generated Elaborations
-Task: Integrate an LLM (like Groq, which you are familiar with) to enrich the suggestions.
+type Opportunity = {
+  type: 'CONCENTRATION' | 'TREND_INCREASE' | 'ANOMALY_DETECTED' | 'BEST_PRACTICE_TIP';
+  title: string;
+  suggestion: string;
+  metadata?: any; // Kurala özel ek veriler için
+};
+4. Arayüz (UI) Uygulaması
+Görev: /dashboard/opportunities/page.tsx sayfasında bu fırsatları göster.
 
-Instructions for Copilot:
+Copilot için Talimatlar:
 
-When the rule-based engine (from Phase 1) identifies an opportunity, we will make a call to a new Server Action.
+Bu sayfa, kullanıcının o an seçili olan projesi için analyzeProjectForOpportunities fonksiyonunu çağıran bir Sunucu Bileşeni (Server Component) olmalıdır.
 
-This Server Action will take the finding (e.g., "65% of emissions are from concrete") and send it to the Groq AI API.
+Fonksiyondan dönen Opportunity nesneleri dizisi (array) üzerinde bir map işlemi yaparak, her bir fırsatı yeniden kullanılabilir bir <OpportunityCard /> bileşeni kullanarak render etmelidir.
 
-The Prompt: The prompt will instruct the AI to act as a "sustainability consultant for the Turkish construction industry" and to elaborate on the suggestion in natural language.
+src/components/opportunities/OpportunityCard.tsx adında yeni bir bileşen oluştur. Bu kart, bir Opportunity nesnesini prop olarak almalı ve şu yapıya sahip olmalıdır:
 
-Example AI Output: The AI could expand the simple "Consider low-carbon concrete" suggestion into a more detailed paragraph: "Beton, projenizin karbon ayak izinde en büyük paya sahip. Düşük klinker oranına sahip veya kalsine kil gibi alternatif bağlayıcılar içeren yeşil beton seçenekleri, projenizin sürdürülebilirlik hedeflerine ulaşmanıza yardımcı olabilir ve bazı durumlarda maliyet avantajı bile sağlayabilir..."
+Başlık: Bir ikon ve opportunity.title.
 
-This AI-generated text would then be displayed in the "Öneri" section of the OpportunityCard.
+Tespit/Öneri: opportunity.suggestion metni.
 
-By following this phased approach, we can launch a valuable, rule-based "Fırsatlar" page quickly and within budget (zero API cost), while having a clear and exciting roadmap to make it truly AI-powered in the future.
+Aksiyonlar: [Detayları İncele] ve [Gizle] gibi butonlar.
 
-
-
-
-
-
-
+Kartın tasarımı, opportunity.type'a göre değişebilir (örn: Anomali uyarısı için kırmızı bir kenarlık).

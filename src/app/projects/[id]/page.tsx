@@ -159,7 +159,7 @@ export default async function ProjectDetail({ params, searchParams }: { params: 
                 Yeni Kayıt Ekle
               </Link>
               <Link
-                href={`/projects/${project.id}/opportunities` as any}
+                href={{ pathname: '/dashboard/opportunities', query: { projectId: project.id } }}
                 className="bg-white/10 hover:bg-white/15 border border-white/10 hover:border-white/15 px-4 py-2.5 rounded-lg transition-all duration-200"
               >
                 Fırsatlar

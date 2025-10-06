@@ -68,21 +68,47 @@ const ALIASES: Record<string, string> = {
   'klima_santrali': 'klima_santrali',
 
   // Site operations / logistics
+  'ekskavator': 'ekskavator_saat',
+  'ekskavator_calismasi': 'ekskavator_saat',
+  'ekskavator_calismasi_saat': 'ekskavator_saat',
+  'ekskavator_operasyonu': 'ekskavator_saat',
+  'dozer': 'dozer_loader_saat',
+  'dozer_calismasi': 'dozer_loader_saat',
+  'dozer_loader': 'dozer_loader_saat',
+  'dozer_loader_calismasi': 'dozer_loader_saat',
+  'loder': 'dozer_loader_saat',
+  'loder_calismasi': 'dozer_loader_saat',
+  'loader': 'dozer_loader_saat',
+  'loader_calismasi': 'dozer_loader_saat',
   'kule_vinc': 'kule_vinc_saat',
   'kule_vinc_saat': 'kule_vinc_saat',
+  'kule_vinc_calismasi': 'kule_vinc_saat',
+  'kule_vinc_calismasi_saat': 'kule_vinc_saat',
+  'kule_vinci': 'kule_vinc_saat',
+  'kule_vinci_calismasi': 'kule_vinc_saat',
+  'kulevinc': 'kule_vinc_saat',
+  'kulevinc_calismasi': 'kule_vinc_saat',
+  'kulevinc_saat': 'kule_vinc_saat',
   'malzeme_nakliyesi_km': 'truck_avg_km',
   'malzeme_nakliyesi_ton_km': 'truck_avg_ton_km',
   'nakliye_km': 'truck_avg_km',
   'nakliye_ton_km': 'truck_avg_ton_km',
 
   // Aggregates / fill
+  'dolgu': 'dolgu_agrega',
+  'dolgu_malzemesi': 'dolgu_agrega',
+  'dolgu_malzemesi_agrega': 'dolgu_agrega',
   'dolgu_agrega': 'dolgu_agrega',
   'stabilize': 'dolgu_stabilize',
   'dolgu_stabilize': 'dolgu_stabilize',
+  'dolgu_malzemesi_stabilize': 'dolgu_stabilize',
+  'stabilize_dolgu': 'dolgu_stabilize',
 
   // Waterproofing and membranes
   'bitumlu_membran': 'bitumlu_membran',
   'su_yalitim_surme': 'su_yalitim_surme',
+  'su_yalitim_surme_esasli': 'su_yalitim_surme',
+  'surme_su_yalitim': 'su_yalitim_surme',
 
   // Energy / fuel
   'elektrik': 'energy',

@@ -133,10 +133,10 @@ export default function DashboardSidebar({
             active={pathname === '/reports'}
           />
           <NavItem 
-            href="/opportunities" 
+            href="/dashboard/opportunities" 
             icon={<Lightbulb size={18} />} 
             label="Fırsatlar" 
-            active={pathname === '/opportunities'}
+            active={pathname === '/dashboard/opportunities'}
           />
           
           <div className="h-px bg-white/10 my-4"></div>

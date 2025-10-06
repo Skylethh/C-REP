@@ -114,7 +114,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
             <Link href="/reports" className="text-sm text-white/80 hover:text-white transition-colors">
               Raporlar
             </Link>
-            <Link href="/opportunities" className="text-sm text-white/80 hover:text-white transition-colors">
+            <Link href={{ pathname: '/dashboard/opportunities' }} className="text-sm text-white/80 hover:text-white transition-colors">
               Fırsatlar
             </Link>
           </div>
@@ -203,7 +203,7 @@ export function Header({ user }: { user?: { email?: string } | null }) {
             <Link href="/reports" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
               Raporlar
             </Link>
-            <Link href="/opportunities" className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
+            <Link href={{ pathname: '/dashboard/opportunities' }} className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
               Fırsatlar
             </Link>
             <Link href={"/profile" as any} className="text-white/80 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(false)}>
