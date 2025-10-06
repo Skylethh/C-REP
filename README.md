@@ -17,7 +17,16 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 SENTRY_DSN=
+GROQ_API_KEY=
+GROQ_OPPORTUNITIES_MODEL=mixtral-8x7b-32768 # opsiyonel, varsayılan bu
+OPPORTUNITIES_AI_TIMEOUT_MS=15000          # opsiyonel
+OPPORTUNITIES_AI_CACHE_TTL_MINUTES=720     # opsiyonel (12 saatlik önbellek)
+OPPORTUNITIES_AI_COOLDOWN_SECONDS=60       # opsiyonel (buton bekleme süresi)
+OPPORTUNITIES_AI_ENABLED=true              # opsiyonel (sunucu tarafı flag)
+NEXT_PUBLIC_OPPORTUNITIES_AI_ENABLED=true  # opsiyonel (klient flag)
 ```
+
+> Not: Groq anahtarını boş bırakırsanız "✨ AI ile Yorumla" butonu çalışmaz ve kullanıcıya yapılandırma hatası mesajı gösterir. AI yanıtları kullanıcı ve proje bazında 12 saat saklanır; yeniden çalıştırmak için en az 60 saniye beklemek gerekir (değerler değiştirilebilir). Gerekirse AI özelliğini tamamen kapatmak için iki flag'i `false` yapabilirsiniz.
 
 3) Supabase SQL: `db/migrations` klasöründeki dosyaları sırayla uygulayın (001 → 016).
 

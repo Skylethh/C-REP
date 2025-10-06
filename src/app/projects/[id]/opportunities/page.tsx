@@ -1,8 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/server';
-import { analyzeProjectForOpportunities } from '@/lib/opportunities';
+import { analyzeProjectForOpportunities } from '@/lib/opportunitiesEngine';
 import OpportunityCard from '@/components/opportunities/OpportunityCard';
-import ResetDismissedButton from '@/components/opportunities/ResetDismissedButton';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,12 +11,13 @@ export default async function ProjectOpportunitiesPage({ params }: { params: Pro
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return <div>Yetkisiz</div>;
 
+  const aiEnabled = (process.env.OPPORTUNITIES_AI_ENABLED ?? "true") !== "false"
+    && (process.env.NEXT_PUBLIC_OPPORTUNITIES_AI_ENABLED ?? "true") !== "false";
+
   const { data: project } = await supabase.from('projects').select('id, name').eq('id', id).maybeSingle();
   if (!project) return <div>Proje bulunamadı</div>;
 
-  const { opportunities, dismissedCount } = await analyzeProjectForOpportunities(id);
-  const renderKey = opportunities.length ? opportunities.map((op) => op.opportunityKey).join('|') : 'empty';
-  const hiddenLabel = dismissedCount > 0 ? `${dismissedCount} gizli fırsat` : null;
+  const opportunities = await analyzeProjectForOpportunities(id);
 
   return (
     <div className="space-y-6">
@@ -35,13 +35,8 @@ export default async function ProjectOpportunitiesPage({ params }: { params: Pro
                 <p className="text-white/70">{project.name} için kural tabanlı içgörüler</p>
               </div>
             </div>
-            <div className="flex flex-col sm:items-end gap-2 sm:self-start">
-              <ResetDismissedButton projectId={project.id} />
-              {hiddenLabel && (
-                <span className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-white/70">
-                  {hiddenLabel}
-                </span>
-              )}
+            <div className="flex flex-col sm:items-end gap-2 sm:self-start text-white/70 text-sm">
+              Toplanan veriler fırsatları otomatik olarak güncelleyecek.
             </div>
           </div>
         </div>
@@ -61,16 +56,11 @@ export default async function ProjectOpportunitiesPage({ params }: { params: Pro
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {opportunities.map((opportunity) => (
             <OpportunityCard
-              key={opportunity.opportunityKey}
+              key={opportunity.id}
               opportunity={opportunity}
-              detailsHref={`/projects/${project.id}`}
-              entryHref={
-                opportunity.type === 'ANOMALY_DETECTED' && opportunity.metadata?.entry_id
-                  ? `/projects/${project.id}?entryId=${encodeURIComponent(String(opportunity.metadata.entry_id))}#entries`
-                  : undefined
-              }
-              renderKey={renderKey}
               projectId={project.id}
+              aiEnabled={aiEnabled}
+              detailsHref={`/projects/${project.id}`}
             />
           ))}
         </div>

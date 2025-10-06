@@ -1,293 +1,393 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Sparkles, Loader2, Search, TrendingUp, AlertTriangle } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
-import { Lightbulb, TrendingUp, AlertTriangle, Leaf, Loader2 } from 'lucide-react';
-import { Button } from '@/components/button';
-import type { Opportunity } from '@/lib/opportunities';
+import type { Opportunity } from '@/lib/opportunitiesEngine';
+import { getAIEnrichmentForOpportunity } from '@/app/actions/opportunities';
 
 type OpportunityCardProps = {
   opportunity: Opportunity;
-  detailsHref?: string;
-  entryHref?: string;
-  onHide?: (opportunity: Opportunity) => void;
   projectId: string;
-  renderKey: string;
+  aiEnabled: boolean;
   className?: string;
+  detailsHref?: string;
 };
 
-const TYPE_LABELS: Record<Opportunity['type'], string> = {
-  CONCENTRATION: 'Yoğunlaşma Uyarısı',
-  TREND_INCREASE: 'Trend Artışı',
-  ANOMALY_DETECTED: 'Anomali Tespiti',
-  BEST_PRACTICE_TIP: 'En İyi Pratik',
-};
-
-const TYPE_STYLES: Record<Opportunity['type'], { border: string; badge: string; iconBg: string; iconColor: string; Icon: ComponentType<{ size?: number | string; className?: string }>; }> = {
+const TYPE_STYLES: Record<Opportunity['type'], {
+  badge: string;
+  icon: JSX.Element;
+  accent: string;
+  iconWrap: string;
+}> = {
   CONCENTRATION: {
-    border: 'border-amber-400/40 bg-gradient-to-br from-amber-500/10 to-white/0',
-    badge: 'text-amber-200 bg-amber-500/10 border-amber-400/30',
-    iconBg: 'bg-amber-500/15 border-amber-400/30',
-    iconColor: 'text-amber-300',
-    Icon: Lightbulb,
+    badge: 'border-leaf-400/40 bg-leaf-500/15 text-leaf-50 shadow-glow-sm',
+    icon: <Search className="h-5 w-5 text-leaf-300" aria-hidden />,
+    accent: 'from-leaf-500/20 to-ocean-500/10',
+    iconWrap: 'bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10',
   },
   TREND_INCREASE: {
-    border: 'border-sky-400/40 bg-gradient-to-br from-sky-500/10 to-white/0',
-    badge: 'text-sky-200 bg-sky-500/10 border-sky-400/30',
-    iconBg: 'bg-sky-500/15 border-sky-400/30',
-    iconColor: 'text-sky-300',
-    Icon: TrendingUp,
+    badge: 'border-ocean-400/40 bg-ocean-500/15 text-ocean-50 shadow-glow-sm',
+    icon: <TrendingUp className="h-5 w-5 text-ocean-300" aria-hidden />,
+    accent: 'from-ocean-500/20 to-leaf-500/10',
+    iconWrap: 'bg-gradient-to-br from-ocean-500/20 to-leaf-500/20 border border-white/10',
   },
   ANOMALY_DETECTED: {
-    border: 'border-red-500/40 bg-gradient-to-br from-red-500/10 to-white/0',
-    badge: 'text-red-200 bg-red-500/10 border-red-400/30',
-    iconBg: 'bg-red-500/15 border-red-400/30',
-    iconColor: 'text-red-300',
-    Icon: AlertTriangle,
-  },
-  BEST_PRACTICE_TIP: {
-    border: 'border-emerald-400/40 bg-gradient-to-br from-emerald-500/10 to-white/0',
-    badge: 'text-emerald-200 bg-emerald-500/10 border-emerald-400/30',
-    iconBg: 'bg-emerald-500/15 border-emerald-400/30',
-    iconColor: 'text-emerald-300',
-    Icon: Leaf,
+    badge: 'border-red-400/40 bg-red-500/15 text-red-50',
+    icon: <AlertTriangle className="h-5 w-5 text-red-300" aria-hidden />,
+    accent: 'from-red-500/20 to-orange-500/10',
+    iconWrap: 'bg-gradient-to-br from-red-500/20 to-orange-500/20 border border-white/10',
   },
 };
 
-type MetadataItem = { label: string; value: string };
+type DataPresenter = {
+  label: string;
+  order: number;
+  format: (value: unknown) => string | null;
+};
 
-function formatNumber(value: unknown, options?: Intl.NumberFormatOptions) {
+const DATA_PRESENTERS: Record<string, DataPresenter> = {
+  category: {
+    label: 'Kategori',
+    order: 1,
+    format: (value) => ensureString(value),
+  },
+  percentage: {
+    label: 'Kategori Payı',
+    order: 2,
+    format: (value) => formatPercentage(value),
+  },
+  categoryTotalKg: {
+    label: 'Kategori Toplamı',
+    order: 3,
+    format: (value) => formatTons(value),
+  },
+  projectTotalKg: {
+    label: 'Proje Toplamı',
+    order: 4,
+    format: (value) => formatTons(value),
+  },
+  windowDays: {
+    label: 'Analiz Penceresi',
+    order: 5,
+    format: (value) => formatNumber(value, { suffix: ' gün' }),
+  },
+  currentTotalKg: {
+    label: 'Son Dönem Toplamı',
+    order: 6,
+    format: (value) => formatTons(value),
+  },
+  previousTotalKg: {
+    label: 'Önceki Dönem Toplamı',
+    order: 7,
+    format: (value) => formatTons(value),
+  },
+  increasePercentage: {
+    label: 'Artış Oranı',
+    order: 8,
+    format: (value) => formatPercentage(value),
+  },
+  entryId: {
+    label: 'Kayıt Numarası',
+    order: 9,
+    format: (value) => ensureString(value),
+  },
+  date: {
+    label: 'Kayıt Tarihi',
+    order: 10,
+    format: (value) => formatDate(value),
+  },
+  ratio: {
+    label: 'Ortalama Çarpanı',
+    order: 11,
+    format: (value) => formatNumber(value, { suffix: ' kat', maximumFractionDigits: 1 }),
+  },
+  valueKg: {
+    label: 'Kayıt Değeri',
+    order: 12,
+    format: (value) => formatTons(value),
+  },
+  meanKg: {
+    label: 'Kategori Ortalaması',
+    order: 13,
+    format: (value) => formatTons(value),
+  },
+  thresholdKg: {
+    label: 'İstatistiksel Eşik',
+    order: 14,
+    format: (value) => formatTons(value),
+  },
+  sampleSize: {
+    label: 'Karşılaştırılan Kayıt',
+    order: 15,
+    format: (value) => formatNumber(value, { suffix: ' adet', maximumFractionDigits: 0 }),
+  },
+};
+
+function ensureString(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return String(value);
+}
+
+function formatNumber(value: unknown, options?: { suffix?: string; maximumFractionDigits?: number }): string | null {
   const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric)) return null;
-  return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 1, ...options }).format(numeric);
+  const formatter = new Intl.NumberFormat('tr-TR', {
+    maximumFractionDigits: options?.maximumFractionDigits ?? 1,
+  });
+  const formatted = formatter.format(numeric);
+  return options?.suffix ? `${formatted}${options.suffix}` : formatted;
 }
 
-function formatTons(valueKg: unknown, fractionDigits = 2) {
-  const numeric = typeof valueKg === 'number' ? valueKg : Number(valueKg);
+function formatTons(value: unknown): string | null {
+  const numeric = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(numeric)) return null;
   const tons = numeric / 1000;
-  return new Intl.NumberFormat('tr-TR', { maximumFractionDigits: fractionDigits }).format(tons);
+  return `${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 2 }).format(tons)} ton CO₂e`;
 }
 
-function mapMetadata(opportunity: Opportunity): MetadataItem[] {
-  const meta = opportunity.metadata ?? {};
-  const chunks: Array<{ label: string; value: string; priority: number }> = [];
-
-  const push = (label: string, value: string | null, priority = 5) => {
-    if (!value) return;
-    chunks.push({ label, value, priority });
-  };
-
-  if ('categoryLabel' in meta || 'category' in meta) {
-    push('Kategori', String(meta.categoryLabel || meta.category), 8);
-  }
-
-  if ('percentage' in meta) {
-    const formatted = formatNumber(meta.percentage, { maximumFractionDigits: 0 });
-    push('Pay', formatted ? `%${formatted}` : null, 1);
-  }
-
-  if ('increase_percentage' in meta) {
-    const formatted = formatNumber(meta.increase_percentage, { maximumFractionDigits: 0 });
-    push('Artış', formatted ? `%${formatted}` : null, 0);
-  }
-
-  if ('current_period_total_kg' in meta) {
-    const formatted = formatTons(meta.current_period_total_kg);
-    push('Son Dönem', formatted ? `${formatted} ton` : null, 1);
-  }
-
-  if ('previous_period_total_kg' in meta) {
-    const formatted = formatTons(meta.previous_period_total_kg);
-    push('Önceki Dönem', formatted ? `${formatted} ton` : null, 2);
-  }
-
-  if ('ratio' in meta) {
-    const formatted = formatNumber(meta.ratio, { maximumFractionDigits: 1 });
-    push('Fark (kat)', formatted ? `${formatted}x` : null, 1);
-  }
-
-  if ('total_tons' in meta) {
-    const formatted = formatNumber(meta.total_tons, { maximumFractionDigits: 2 });
-    push('Toplam Miktar', formatted ? `${formatted} ton` : null, 2);
-  }
-
-  if ('total_co2e_kg' in meta) {
-    const formatted = formatTons(meta.total_co2e_kg);
-    push('Toplam CO₂e', formatted ? `${formatted} ton` : null, 2);
-  }
-
-  if ('window_days' in meta) {
-    push('Dönem', `${meta.window_days} gün`, 3);
-  }
-
-  if ('category_total_kg' in meta) {
-    const formatted = formatTons(meta.category_total_kg);
-    push('Kategori Toplamı', formatted ? `${formatted} ton` : null, 3);
-  }
-
-  if ('project_total_kg' in meta) {
-    const formatted = formatTons(meta.project_total_kg);
-    push('Proje Toplamı', formatted ? `${formatted} ton` : null, 4);
-  }
-
-  if ('value_kg' in meta) {
-    const formatted = formatTons(meta.value_kg);
-    push('Kayıt Değeri', formatted ? `${formatted} ton` : null, 0);
-  }
-
-  if ('mean_kg' in meta) {
-    const formatted = formatTons(meta.mean_kg);
-    push('Ortalama', formatted ? `${formatted} ton` : null, 3);
-  }
-
-  if ('stddev_kg' in meta) {
-    const formatted = formatTons(meta.stddev_kg, 3);
-    push('Std Sapma', formatted ? `${formatted} ton` : null, 4);
-  }
-
-  if ('threshold_kg' in meta) {
-    const formatted = formatTons(meta.threshold_kg);
-    push('Eşik', formatted ? `${formatted} ton` : null, 2);
-  }
-
-  if ('entry_id' in meta) {
-    push('Kayıt ID', String(meta.entry_id), 10);
-  }
-
-  return chunks
-    .sort((a, b) => a.priority - b.priority || a.label.localeCompare(b.label))
-    .map(({ label, value }) => ({ label, value }));
+function formatPercentage(value: unknown): string | null {
+  const numeric = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numeric)) return null;
+  return `%${new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(numeric)}`;
 }
 
-export function OpportunityCard({ opportunity, detailsHref, entryHref, onHide, className, projectId, renderKey }: OpportunityCardProps) {
-  const [visible, setVisible] = useState(true);
-  const [dismissing, setDismissing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const config = TYPE_STYLES[opportunity.type];
-  const metadataItems = useMemo(() => mapMetadata(opportunity), [opportunity]);
+function formatDate(value: unknown): string | null {
+  if (value instanceof Date) {
+    return value.toLocaleDateString('tr-TR');
+  }
+  if (typeof value === 'string') {
+    const parsed = new Date(value);
+    if (Number.isFinite(parsed.getTime())) {
+      return parsed.toLocaleDateString('tr-TR');
+    }
+    return value;
+  }
+  return null;
+}
+
+function formatRelativeTime(date: Date): string {
+  const now = Date.now();
+  const diffMs = now - date.getTime();
+  const seconds = Math.max(1, Math.round(Math.abs(diffMs) / 1000));
+  const suffix = diffMs >= 0 ? 'önce' : 'sonra';
+  if (seconds < 60) return `${seconds} saniye ${suffix}`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} dakika ${suffix}`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} saat ${suffix}`;
+  const days = Math.round(hours / 24);
+  return `${days} gün ${suffix}`;
+}
+
+export default function OpportunityCard({ opportunity, projectId, aiEnabled, className, detailsHref }: OpportunityCardProps) {
+  const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [aiSource, setAiSource] = useState<'cache' | 'live' | null>(null);
+  const [cachedAt, setCachedAt] = useState<Date | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState<Date | null>(null);
+  const [cooldownMessage, setCooldownMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    setVisible(true);
-    setErrorMessage(null);
-  }, [renderKey, opportunity.opportunityKey]);
+    setAiSuggestion(null);
+    setAiSource(null);
+    setCachedAt(null);
+    setError(null);
+    setIsLoading(false);
+    setCooldownUntil(null);
+    setCooldownMessage(null);
+  }, [opportunity.id]);
 
   useEffect(() => {
-    const handler = () => {
-      setVisible(true);
-      setErrorMessage(null);
-    };
-    window.addEventListener('opportunities:reset', handler);
-    return () => window.removeEventListener('opportunities:reset', handler);
-  }, []);
+    if (!cooldownUntil) return undefined;
+    const diff = cooldownUntil.getTime() - Date.now();
+    if (diff <= 0) {
+      setCooldownUntil(null);
+      setCooldownMessage(null);
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      setCooldownUntil(null);
+      setCooldownMessage(null);
+    }, diff);
+    return () => clearTimeout(timer);
+  }, [cooldownUntil]);
 
-  if (!visible) return null;
+  const dataEntries = useMemo(() => {
+    return Object.entries(opportunity.data ?? {})
+      .map(([key, raw]) => {
+        const presenter = DATA_PRESENTERS[key];
+        if (!presenter) return null;
+        const value = presenter.format(raw);
+        if (!value) return null;
+        return {
+          key,
+          label: presenter.label,
+          value,
+          order: presenter.order,
+        };
+      })
+      .filter((item): item is { key: string; label: string; value: string; order: number } => Boolean(item))
+      .sort((a, b) => a.order - b.order);
+  }, [opportunity.data]);
 
-  const handleHide = async () => {
-    if (dismissing) return;
-    setErrorMessage(null);
-    setDismissing(true);
-    setVisible(false);
+  const description = aiSuggestion ?? opportunity.suggestion;
+  const isEnriched = Boolean(aiSuggestion);
+  const cooldownActive = cooldownUntil ? cooldownUntil.getTime() > Date.now() : false;
+
+  const handleAnalyze = async () => {
+    if (!aiEnabled) return;
+    if (isLoading || cooldownActive || (aiSuggestion && aiSource === 'live')) return;
+    setIsLoading(true);
+    setError(null);
+    setCooldownMessage(null);
     try {
-      const response = await fetch('/api/opportunities/dismiss', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId,
-          opportunityId: opportunity.opportunityKey,
-          ruleId: opportunity.ruleId,
-        }),
-      });
-      if (!response.ok) {
-        throw new Error(`dismiss_failed_${response.status}`);
-      }
-      onHide?.(opportunity);
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Fırsat gizlendi', variant: 'info' } }));
+      const result = await getAIEnrichmentForOpportunity(opportunity, projectId);
+      if (result.success) {
+        const content = result.suggestion.trim();
+        setAiSuggestion(content);
+        setAiSource(result.source);
+        setCachedAt(result.cachedAt ? new Date(result.cachedAt) : null);
+        setCooldownUntil(null);
+        setCooldownMessage(null);
+        if (typeof window !== 'undefined') {
+          const message = result.source === 'cache' ? 'AI önerisi önbellekten getirildi.' : 'AI yorum hazır 🎯';
+          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message, variant: 'success' } }));
+        }
+      } else {
+        if (result.reason === 'cooldown') {
+          setCooldownMessage(result.error);
+          setCooldownUntil(result.retryAt ? new Date(result.retryAt) : null);
+          setError(null);
+        } else {
+          setError(result.error);
+        }
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: result.error, variant: 'error' } }));
+        }
       }
     } catch (err) {
-      console.error('[opportunities] dismiss failed', err);
-      setVisible(true);
-      setErrorMessage('Fırsat gizlenemedi, lütfen tekrar deneyin.');
+      console.error('[opportunities] ai analyze failed', err);
+      const fallback = 'AI analizi şu anda tamamlanamadı.';
+      setError(fallback);
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: 'Fırsat gizlenemedi', variant: 'error' } }));
+        window.dispatchEvent(new CustomEvent('app-toast', { detail: { message: fallback, variant: 'error' } }));
       }
     } finally {
-      setDismissing(false);
+      setIsLoading(false);
     }
   };
 
-  const TypeIcon = config.Icon;
+  const config = TYPE_STYLES[opportunity.type];
+  const relativeCached = cachedAt ? formatRelativeTime(cachedAt) : null;
+  const analyzeLabel = aiEnabled
+    ? aiSuggestion && aiSource === 'cache'
+      ? 'Yeniden Çalıştır'
+      : 'AI ile Yorumla'
+    : 'AI Kapalı';
+  const analyzeDisabled = !aiEnabled || isLoading || cooldownActive || (aiSuggestion !== null && aiSource === 'live');
 
   return (
-    <div className={twMerge('rounded-xl border bg-white/5 backdrop-blur-sm shadow-lg transition-colors flex flex-col overflow-hidden', config.border, className)}>
-      <div className="flex items-start gap-4 p-5 border-b border-white/10">
-        <div className={twMerge('p-2.5 rounded-lg border', config.iconBg)}>
-          <TypeIcon size={20} className={config.iconColor} />
-        </div>
-        <div className="flex-1 space-y-1">
-          <span className={twMerge('text-xs font-semibold uppercase tracking-wide inline-flex px-2 py-0.5 rounded-full border', config.badge)}>
-            {TYPE_LABELS[opportunity.type]}
+    <div className={twMerge(
+      'dashboard-card flex flex-col overflow-hidden transition-all duration-300 hover:translate-y-[-2px]',
+      className,
+    )}>
+      <div className={twMerge('flex items-start gap-4 p-5 border-b border-white/10 bg-gradient-to-r', config.accent)}>
+        <div className={twMerge('p-3 rounded-xl shadow-inner', config.iconWrap)}>{config.icon}</div>
+        <div className="flex-1 space-y-2">
+          <span className={twMerge('inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-wide rounded-full border backdrop-blur-sm', config.badge)}>
+            {opportunity.type === 'CONCENTRATION' && 'Yoğunlaşma Uyarısı'}
+            {opportunity.type === 'TREND_INCREASE' && 'Trend Artışı'}
+            {opportunity.type === 'ANOMALY_DETECTED' && 'Anomali Tespiti'}
           </span>
-          <h3 className="text-lg font-semibold text-white">{opportunity.title}</h3>
+          <h3 className="text-lg font-semibold text-white leading-tight">{opportunity.title}</h3>
         </div>
       </div>
 
       <div className="p-5 space-y-4">
-        <p className="text-white/85 leading-relaxed">
-          {opportunity.suggestion}
-        </p>
+        <div
+          className={twMerge(
+            'leading-relaxed min-h-[80px] rounded-xl border px-4 py-3 text-sm whitespace-pre-line transition-all',
+            isEnriched
+              ? 'border-leaf-400/40 bg-gradient-to-br from-leaf-500/15 to-ocean-500/10 text-white shadow-glow-sm'
+              : 'border-white/10 bg-white/5 text-white/85'
+          )}
+        >
+          {isEnriched && (
+            <div className="mb-2 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-leaf-100">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              {aiSource === 'cache' ? 'AI Önerisi (Önbellek)' : 'AI Önerisi'}
+            </div>
+          )}
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-white/70">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              <span>AI analizi hazırlanıyor…</span>
+            </div>
+          ) : (
+            description
+          )}
+        </div>
+        {relativeCached && aiSource === 'cache' && (
+          <div className="text-xs text-leaf-100/70">
+            Son AI yorumu {relativeCached} kaydedildi.
+          </div>
+        )}
 
-        {metadataItems.length > 0 && (
+        {dataEntries.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {metadataItems.map((item) => (
-              <div key={`${item.label}-${item.value}`} className="rounded-lg border border-white/10 bg-white/5 p-3">
-                <div className="text-xs text-white/60 uppercase tracking-wide">{item.label}</div>
-                <div className="text-sm text-white/90 font-medium">{item.value}</div>
+            {dataEntries.map((item) => (
+              <div
+                key={item.key}
+                className="data-card min-h-[70px] flex flex-col justify-between"
+              >
+                <div className="text-xs uppercase tracking-wide text-white/60 font-medium">{item.label}</div>
+                <div className="mt-1.5 text-sm font-semibold text-white">{item.value}</div>
               </div>
             ))}
           </div>
         )}
+
+        {error && <div className="text-xs font-medium text-red-300">{error}</div>}
       </div>
 
-      <div className="px-5 pb-5 mt-auto flex flex-col sm:flex-row gap-3">
-        <div className="flex flex-col sm:flex-row gap-3 sm:w-auto w-full">
+      <div className="p-5 pt-0 mt-auto">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzeDisabled}
+            className="btn-primary flex-1 inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          >
+            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Sparkles className="h-4 w-4" aria-hidden />}
+            {analyzeLabel}
+          </button>
+
           {detailsHref && (
             <a
               href={detailsHref}
-              className="inline-flex items-center justify-center rounded-lg border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-medium text-white/90 hover:bg-white/20 hover:border-white/25 transition-all"
+              className="btn-secondary inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-white/80 hover:text-white"
             >
               Projeyi Aç
-            </a>
+          {cooldownMessage && (
+            <div className="mt-3 text-xs font-medium text-white/70">
+              {cooldownMessage}
+            </div>
           )}
-          {entryHref && (
-            <a
-              href={entryHref}
-              className="inline-flex items-center justify-center rounded-lg border border-leaf-400/30 bg-leaf-500/20 px-4 py-2.5 text-sm font-medium text-white hover:bg-leaf-500/30 transition-all"
-            >
-              Kaydı Aç
             </a>
           )}
         </div>
-        <div className="sm:ml-auto flex flex-col items-start gap-2 sm:items-end">
-          <Button
-            variant="ghost"
-            onClick={handleHide}
-            disabled={dismissing}
-            className="sm:ml-auto"
-          >
-            {dismissing && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
-            Gizle
-          </Button>
-          {errorMessage && (
-            <span className="text-xs text-red-300 text-left sm:text-right">
-              {errorMessage}
-            </span>
+        {cooldownMessage && aiEnabled && (
+            <div className="mt-3 text-xs font-medium text-white/70">
+              {cooldownMessage}
+            </div>
           )}
-        </div>
+        {!aiEnabled && (
+          <div className="mt-3 text-xs font-medium text-white/70">
+            AI özelliği bu ortamda devre dışı bırakıldı.
+          </div>
+        )}
       </div>
     </div>
   );
 }
-
-export default OpportunityCard;

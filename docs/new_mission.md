@@ -1,103 +1,115 @@
-Özellik Geliştirme Rehberi: "Fırsatlar" Sayfası - Faz 1 (Kural Tabanlı Motor)
-1. Amaç
-Bu geliştirmenin amacı, "Fırsatlar" sayfasının MVP (Minimum Uygulanabilir Ürün) versiyonunu inşa etmektir. Bu özellik, harici bir AI API'si kullanmayacaktır. Bunun yerine, bir projenin veritabanındaki verilerini analiz eden ve kullanıcıya proaktif olarak eyleme geçirilebilir içgörüler ve potansiyel sorunları sunan, sunucu tarafında çalışan, kural tabanlı bir motor olacaktır.
+Elbette. "Fırsatlar" sayfasının, en son konuştuğumuz, kullanıcı kontrolünü ve şeffaflığı merkeze alan, son ve en detaylı versiyonu için kapsamlı bir proje tarifi (prompt) hazırladım.
 
-2. Arka Uç (Backend) Mantığı: opportunitiesEngine Fonksiyonu
-Projenin beyni bu fonksiyon olacak.
+Bu tarif, projenin beynini oluşturacak kural tabanlı motoru ve bu motorun bulgularını zenginleştirecek olan, kullanıcı tarafından tetiklenen yapay zeka katmanını bir bütün olarak ele alır.
 
-Görev: src/lib/opportunities.ts içinde analyzeProjectForOpportunities(projectId) adında yeni bir sunucu tarafı fonksiyonu oluştur.
+Copilot için Proje Tarifi: Akıllı "Fırsatlar" Sayfası (Kullanıcı Tetiklemeli AI ile)
+(Aşağıdaki metnin tamamını kopyalayabilirsin)
+
+Özellik Geliştirme Rehberi: Akıllı "Fırsatlar" Sayfası (Kullanıcı Tetiklemeli AI Zenginleştirmesi ile)
+1. Amaç ve Temel İlkeler
+Amaç: Kullanıcının proje verilerini proaktif olarak analiz eden bir "Fırsatlar" sayfası inşa etmek. Bu sayfa, önce yerel bir kural motoruyla potansiyel fırsatları belirleyecek, ardından kullanıcının isteği üzerine bu bulguları bir Büyük Dil Modeli (LLM) ile zenginleştirerek, onlara eyleme geçirilebilir, derinlemesine içgörüler sunacak.
+
+Temel İlkeler:
+
+Kullanıcı Kontrolü: Yapay zeka, kullanıcıdan habersiz, arka planda çalışmayacak. Her AI analizi, kullanıcı tarafından, spesifik bir kart için tetiklenecektir.
+
+Şeffaflık: Kullanıcı, bir AI işleminin ne zaman başladığını ve bittiğini net bir şekilde görecektir.
+
+Verimlilik: Sayfa ilk başta hızlı yüklenecek. API çağrıları sadece gerçekten ihtiyaç duyulduğunda yapılacaktır.
+
+2. Genel İş Akışı
+Kullanıcı /dashboard/opportunities sayfasına gider. Sayfa, kural tabanlı motorun ürettiği basit fırsat kartlarıyla anında yüklenir.
+
+Kullanıcı, ilgisini çeken bir kart görür.
+
+Kullanıcı, o kartın içindeki ✨ AI ile Yorumla gibi bir butona tıklar.
+
+Sadece o kartın içinde bir yükleme animasyonu (spinner) belirir.
+
+Birkaç saniye sonra, o kartın içeriği, AI tarafından üretilen detaylı ve zenginleştirilmiş metinle güncellenir.
+
+3. Bölüm A: Kural Tabanlı Motor (Temel Katman)
+Bu, sayfanın temel zekasını oluşturur.
+
+Görev: src/lib/opportunitiesEngine.ts içinde analyzeProjectForOpportunities(projectId) adında bir sunucu tarafı fonksiyonu oluştur.
 
 Copilot için Talimatlar:
 
-Bu fonksiyon, projectId'yi argüman olarak alacak ve bir Opportunity nesneleri dizisi (array) döndürecektir.
+Bu fonksiyon, bir projectId alacak ve bir Opportunity nesneleri dizisi (array) döndürecektir.
 
-Fonksiyon, ilk olarak verilen projectId için Supabase veritabanındaki tüm emission_entries kayıtlarını çekmelidir.
+Supabase'den ilgili proje için tüm emission_entries kayıtlarını çekmelidir.
 
-Ardından, bu veri seti üzerinde aşağıda tanımlanan bir dizi kural kontrolü çalıştırmalıdır. Bir kural tetiklendiğinde, ilgili Opportunity nesnesini oluşturup sonuç dizisine eklemelidir.
+Aşağıdaki kuralları uygulayarak fırsatları tespit etmelidir:
 
-Uygulanacak Kurallar:
-Kural 1: Yüksek Yoğunlaşma Kuralı
+Yoğunlaşma Kuralı: Tek bir kategorinin emisyonları, toplamın %50'sinden fazlaysa bir fırsat oluştur.
 
-Mantık: Eğer tek bir category'den (örn: 'concrete_c25_30') gelen emisyonların toplamı, projenin toplam emisyonlarının %50'sinden fazlaysa bir fırsat oluştur.
+Trend Artışı Kuralı: Son 30 günün emisyonları, bir önceki 30 güne göre %20'den fazla arttıysa bir fırsat oluştur.
 
-Örnek Çıktı Nesnesi:
+Anomali Tespiti Kuralı: Bir kategorideki tek bir kayıt, o kategorinin ortalamasının 3 standart sapmasından daha yüksekse, bunu bir anomali olarak işaretle.
 
-TypeScript
-
-{ 
-  type: 'CONCENTRATION', 
-  title: 'Beton Emisyonu Yoğunlaşması', 
-  suggestion: 'Projenizin emisyonlarının %65\'i betondan geliyor. Düşük karbonlu alternatifleri araştırarak büyük bir etki yaratabilirsiniz.',
-  metadata: { category: 'concrete_c25_30', percentage: 65 }
-}
-Kural 2: Kendi Kendine Kıyaslama Kuralı (Trend Analizi)
-
-Mantık: Son 30 günün toplam emisyonları, bir önceki 30 günlük periyodun toplam emisyonlarından %20'den fazla ise bir fırsat oluştur.
-
-Örnek Çıktı Nesnesi:
-
-TypeScript
-
-{
-  type: 'TREND_INCREASE',
-  title: 'Son Dönemde Emisyon Artışı',
-  suggestion: 'Son 30 gündeki emisyonlarınız bir önceki döneme göre %25 arttı. Bu artışın kaynağını Raporlar sayfasından detaylı inceleyebilirsiniz.',
-  metadata: { increase_percentage: 25 }
-}
-Kural 3: Anomali Tespiti Kuralı (Veri Kalitesi)
-
-Mantık: Belirli bir kategorideki (örn: tüm 'beton' kayıtları) emisyon değerlerinin ortalamasını ve standart sapmasını hesapla. Eğer tek bir kayıt, (ortalama + 3 * standart sapma) değerinden daha yüksekse, bunu bir anomali olarak işaretle.
-
-Örnek Çıktı Nesnesi:
-
-TypeScript
-
-{
-  type: 'ANOMALY_DETECTED',
-  title: 'Potansiyel Hatalı Veri Girişi',
-  suggestion: '20 Eylül tarihli \'Beton C25\' kaydınız, projedeki diğer beton girişlerinin ortalamasından 10 kat daha yüksek görünüyor. Bir yazım hatası olabilir mi?',
-  metadata: { entry_id: '...' }
-}
-Kural 4: Statik İpucu Kuralı (En İyi Pratikler)
-
-Mantık: Proje, belirli bir eşik değerden fazla malzeme kullandıysa (örn: toplamda 10 tondan fazla inşaat demiri), statik bir ipucu göster.
-
-Örnek Çıktı Nesnesi:
-
-TypeScript
-
-{
-  type: 'BEST_PRACTICE_TIP',
-  title: 'Geri Dönüştürülmüş Malzeme Fırsatı',
-  suggestion: 'Projenizde çelik kullanımı yüksek. Tedarikçinizle görüşerek geri dönüştürülmüş çelik kullanma opsiyonlarını değerlendirdiniz mi? Bu, malzemenin gömülü karbonunu %70\'e kadar azaltabilir.',
-  metadata: { material: 'steel' }
-}
-3. Opportunity Tipi (TypeScript)
-Tutarlılık için, opportunities.ts dosyasının en başında Opportunity nesnesinin tip tanımını yap:
+Opportunity tipini şu şekilde tanımla:
 
 TypeScript
 
 type Opportunity = {
-  type: 'CONCENTRATION' | 'TREND_INCREASE' | 'ANOMALY_DETECTED' | 'BEST_PRACTICE_TIP';
+  id: string; // Benzersiz bir kimlik (örn: crypto.randomUUID())
+  type: 'CONCENTRATION' | 'TREND_INCREASE' | 'ANOMALY_DETECTED';
   title: string;
-  suggestion: string;
-  metadata?: any; // Kurala özel ek veriler için
+  // Bu artık basit ve statik bir öneri olacak
+  suggestion: string; 
+  data: Record<string, any>; // AI'a gönderilecek ham veriler
 };
-4. Arayüz (UI) Uygulaması
-Görev: /dashboard/opportunities/page.tsx sayfasında bu fırsatları göster.
+4. Bölüm B: Yapay Zeka Zenginleştirme Katmanı
+Bu, kullanıcı tarafından tetiklenen "sihirli" kısımdır.
+
+Görev: İsteğe bağlı AI analizi için bir Server Action oluştur.
 
 Copilot için Talimatlar:
 
-Bu sayfa, kullanıcının o an seçili olan projesi için analyzeProjectForOpportunities fonksiyonunu çağıran bir Sunucu Bileşeni (Server Component) olmalıdır.
+src/app/actions/opportunities.ts içinde getAIEnrichmentForOpportunity(opportunity: Opportunity) adında yeni bir Server Action oluştur.
 
-Fonksiyondan dönen Opportunity nesneleri dizisi (array) üzerinde bir map işlemi yaparak, her bir fırsatı yeniden kullanılabilir bir <OpportunityCard /> bileşeni kullanarak render etmelidir.
+Bu fonksiyon, tek bir Opportunity nesnesi alacak.
 
-src/components/opportunities/OpportunityCard.tsx adında yeni bir bileşen oluştur. Bu kart, bir Opportunity nesnesini prop olarak almalı ve şu yapıya sahip olmalıdır:
+İçinde, opportunity.type'a göre bir switch ifadesi kullanarak, Groq API'si için özel bir prompt oluşturacak.
 
-Başlık: Bir ikon ve opportunity.title.
+Örnek Prompt (CONCENTRATION tipi için):
 
-Tespit/Öneri: opportunity.suggestion metni.
+You are a sustainability consultant for the Turkish construction industry. A project's analysis shows that {opportunity.data.percentage}% of its emissions come from {opportunity.data.category}. In simple Turkish, explain why this is a key area to focus on and suggest a clear, actionable next step for the project manager.
+Fonksiyon, Groq API'sini çağıracak ve AI tarafından üretilen metni bir string olarak döndürecektir.
 
-Aksiyonlar: [Detayları İncele] ve [Gizle] gibi butonlar.
+5. Bölüm C: Arayüz (UI) Uygulaması
+Bu bölüm, yukarıdaki iki mantığı bir araya getirir.
 
-Kartın tasarımı, opportunity.type'a göre değişebilir (örn: Anomali uyarısı için kırmızı bir kenarlık).
+Görev: /dashboard/opportunities/page.tsx sayfasını ve interaktif kart bileşenini oluştur.
+
+Copilot için Talimatlar:
+
+1. Ana Sayfa (.../opportunities/page.tsx):
+
+Bu sayfa bir Sunucu Bileşeni (Server Component) olmalıdır.
+
+Sayfa yüklendiğinde, analyzeProjectForOpportunities fonksiyonunu çağırarak basit ve ham fırsatları almalıdır.
+
+Bu fırsatlar dizisi üzerinde map yaparak, her biri için bir <OpportunityCard /> bileşenini render etmelidir.
+
+2. İnteraktif Kart Bileşeni (src/components/opportunities/OpportunityCard.tsx):
+
+Bu bileşen, state yöneteceği için bir "use client" bileşeni olmalıdır.
+
+State Yönetimi:
+
+useState<string | null>(null) ile aiSuggestion adında bir state tutmalıdır.
+
+useState<boolean>(false) ile isLoading adında bir state tutmalıdır.
+
+Tetikleyici (Trigger): Kartın içinde, ✨ AI ile Yorumla metnine sahip bir Button olmalıdır. Bu buton, isLoading true ise veya aiSuggestion zaten doluysa devre dışı (disabled) olmalıdır.
+
+Aksiyon (Action): Butonun onClick olayı, getAIEnrichmentForOpportunity server action'ını, kartın kendi opportunity prop'unu göndererek çağırmalıdır. Çağrı yapmadan önce isLoading'i true yapmalıdır.
+
+Görüntüleme Mantığı:
+
+Başlangıçta: aiSuggestion null iken, kart prop'tan gelen basit ve statik opportunity.suggestion metnini göstermelidir.
+
+Yüklenirken: isLoading true olduğunda, metin alanında bir "spinner" veya "skeleton loader" göstermelidir.
+
+Sonuç Geldiğinde: Server action'dan aiSuggestion metni döndüğünde, bu metni state'e kaydetmeli, isLoading'i false yapmalı ve artık basit metin yerine bu yeni, zenginleştirilmiş AI metnini göstermelidir.
