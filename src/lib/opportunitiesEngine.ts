@@ -4,7 +4,7 @@ import { normalizeCategory } from '@/lib/categoryAliases';
 
 export type Opportunity = {
   id: string;
-  type: 'CONCENTRATION' | 'TREND_INCREASE' | 'ANOMALY_DETECTED';
+  type: 'CONCENTRATION' | 'TREND_INCREASE' | 'ANOMALY_DETECTED' | 'COST_CARBON_IMBALANCE' | 'BENCHMARK_GAP';
   title: string;
   suggestion: string;
   data: Record<string, any>;
@@ -26,6 +26,9 @@ export type RuleEntry = {
   date: Date | null;
   rawCategory: string;
   normalizedCategory: string;
+  amount: number | null;
+  unit: string | null;
+  isCurrency: boolean;
 };
 
 const MASS_UNIT_FACTORS: Record<string, number> = {
@@ -41,6 +44,26 @@ const MASS_UNIT_FACTORS: Record<string, number> = {
   lb: 0.000453592,
   lbs: 0.000453592,
 };
+
+const CURRENCY_UNITS = new Set([
+  'try',
+  'tl',
+  '₺',
+  'turkish lira',
+  'usd',
+  'eur',
+  'gbp',
+  'aud',
+  'cad',
+  'chf',
+  'sar',
+  'qar',
+  'dollar',
+  'dollars',
+  'lira',
+  'euro',
+  'pound',
+]);
 
 function coerceNumber(value: unknown): number | null {
   if (value === null || value === undefined) return null;
@@ -81,6 +104,9 @@ export function buildRuleEntries(rawEntries: RawEntry[]): RuleEntry[] {
       date: toDate(entry.date),
       rawCategory,
       normalizedCategory: normalized,
+      amount,
+      unit: unit || null,
+      isCurrency: Boolean(amount && unit && CURRENCY_UNITS.has(unit)),
     } satisfies RuleEntry;
   });
 }
@@ -190,6 +216,141 @@ function detectTrend(entries: RuleEntry[], now: Date): Opportunity | null {
   } satisfies Opportunity;
 }
 
+type CostBucket = {
+  emission: number;
+  spend: number;
+  label: string;
+  entries: number;
+  units: Set<string>;
+};
+
+function detectCostCarbonImbalance(entries: RuleEntry[]): Opportunity | null {
+  const buckets = new Map<string, CostBucket>();
+
+  for (const entry of entries) {
+    if (!entry.isCurrency || !entry.amount || entry.amount <= 0 || entry.co2eKg <= 0) continue;
+    const key = entry.normalizedCategory || 'other';
+    const bucket = buckets.get(key) ?? {
+      emission: 0,
+      spend: 0,
+      label: entry.rawCategory,
+      entries: 0,
+      units: new Set<string>(),
+    };
+    bucket.emission += entry.co2eKg;
+    bucket.spend += entry.amount;
+    bucket.entries += 1;
+    if (entry.unit) bucket.units.add(entry.unit);
+    if (entry.rawCategory && !bucket.label) {
+      bucket.label = entry.rawCategory;
+    }
+    buckets.set(key, bucket);
+  }
+
+  if (!buckets.size) return null;
+
+  let totalEmission = 0;
+  let totalSpend = 0;
+  for (const bucket of buckets.values()) {
+    totalEmission += bucket.emission;
+    totalSpend += bucket.spend;
+  }
+
+  if (totalEmission <= 0 || totalSpend <= 0) return null;
+
+  let best: {
+    key: string;
+    emissionShare: number;
+    spendShare: number;
+    bucket: CostBucket;
+    ratio: number;
+  } | null = null;
+
+  for (const [key, bucket] of buckets.entries()) {
+    if (bucket.entries < 2) continue;
+    if (bucket.spend <= 0 || bucket.emission <= 0) continue;
+    const emissionShare = bucket.emission / totalEmission;
+    const spendShare = bucket.spend / totalSpend;
+    if (emissionShare < 0.3) continue;
+    const ratio = emissionShare / Math.max(spendShare, 0.01);
+    if (ratio < 1.8) continue;
+    if (spendShare > 0.35 && ratio < 2.2) continue;
+    if (!best || ratio > best.ratio) {
+      best = { key, emissionShare, spendShare, bucket, ratio };
+    }
+  }
+
+  if (!best) return null;
+
+  const label = (best.bucket.label || best.key).replace(/_/g, ' ');
+  const emissionSharePct = Math.round(best.emissionShare * 1000) / 10;
+  const spendSharePct = Math.round(best.spendShare * 1000) / 10;
+  const currencyUnit = Array.from(best.bucket.units)[0] ?? null;
+  const spendDisplay = new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(best.bucket.spend);
+  const spendLabel = currencyUnit ? `${spendDisplay} ${currencyUnit.toUpperCase()}` : spendDisplay;
+
+  return {
+    id: randomUUID(),
+    type: 'COST_CARBON_IMBALANCE',
+    title: `${label} kaleminde karbon yoğunluğu yüksek`,
+    suggestion: `${label} kalemi projenin toplam emisyonunun %${emissionSharePct}’ini oluştururken bütçedeki payı yalnızca %${spendSharePct}. Tedarikçi koşullarını, alternatif malzemeleri veya kullanım miktarını gözden geçirmek karbon yoğunluğunu düşürmeye yardımcı olabilir.`,
+    data: {
+      category: label,
+      categoryKey: best.key,
+      emissionShare: emissionSharePct,
+      spendShare: spendSharePct,
+      emissionKg: Number(best.bucket.emission.toFixed(2)),
+      spendAmount: Number(best.bucket.spend.toFixed(2)),
+      currencyUnit,
+      spendLabel,
+      sampleSize: best.bucket.entries,
+    },
+  } satisfies Opportunity;
+}
+
+function median(values: number[]): number {
+  if (!values.length) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1] + sorted[mid]) / 2;
+  }
+  return sorted[mid];
+}
+
+function detectBenchmarkGap(entries: RuleEntry[], peerTotalsKg: number[]): Opportunity | null {
+  if (!peerTotalsKg || peerTotalsKg.length < 3) return null;
+
+  const projectTotal = entries.reduce((sum, entry) => sum + Math.max(0, entry.co2eKg), 0);
+  if (projectTotal <= 0) return null;
+
+  const validPeers = peerTotalsKg.filter((value) => Number.isFinite(value) && value > 0);
+  if (validPeers.length < 3) return null;
+
+  const peerMedian = median(validPeers);
+  if (!peerMedian || peerMedian <= 0) return null;
+
+  const ratio = projectTotal / peerMedian;
+  if (ratio <= 1.3) return null;
+
+  const deltaPercent = Math.round((ratio - 1) * 100);
+  const peerAverage = validPeers.reduce((sum, value) => sum + value, 0) / validPeers.length;
+
+  return {
+    id: randomUUID(),
+    type: 'BENCHMARK_GAP',
+    title: 'Benzer projelere göre yüksek emisyon',
+    suggestion: `Toplam emisyonunuz benzer projelerin medyanından yaklaşık %${deltaPercent} daha yüksek görünüyor. En yoğun kategorileri gözden geçirip kısa vadede azaltım planı oluşturmayı düşünün.`,
+    data: {
+      projectTotalKg: Number(projectTotal.toFixed(2)),
+      peerMedianKg: Number(peerMedian.toFixed(2)),
+      peerAverageKg: Number(peerAverage.toFixed(2)),
+      deltaPercent,
+      peerCount: validPeers.length,
+    },
+  } satisfies Opportunity;
+}
+
 function detectAnomalies(entries: RuleEntry[]): Opportunity[] {
   const grouped = new Map<string, RuleEntry[]>();
 
@@ -245,14 +406,25 @@ function detectAnomalies(entries: RuleEntry[]): Opportunity[] {
   return opportunities;
 }
 
-export function generateOpportunitiesFromEntries(entries: RuleEntry[], now: Date = new Date()): Opportunity[] {
+export function generateOpportunitiesFromEntries(
+  entries: RuleEntry[],
+  context: { now?: Date; peerTotalsKg?: number[] } = {},
+): Opportunity[] {
   const opportunities: Opportunity[] = [];
+  const now = context.now ?? new Date();
+  const peerTotals = context.peerTotalsKg ?? [];
 
   const concentration = detectConcentration(entries);
   if (concentration) opportunities.push(concentration);
 
+  const costImbalance = detectCostCarbonImbalance(entries);
+  if (costImbalance) opportunities.push(costImbalance);
+
   const trend = detectTrend(entries, now);
   if (trend) opportunities.push(trend);
+
+  const benchmark = detectBenchmarkGap(entries, peerTotals);
+  if (benchmark) opportunities.push(benchmark);
 
   opportunities.push(...detectAnomalies(entries));
 
@@ -294,6 +466,25 @@ export async function analyzeProjectForOpportunities(projectId: string): Promise
 
   if (!rawEntries.length) return [];
 
+  let peerTotalsKg: number[] = [];
+  const { data: peerRows, error: peerError } = await supabase
+    .from('entries')
+    .select('project_id, co2e_value')
+    .neq('project_id', projectId);
+
+  if (peerError) {
+    console.warn('[opportunities] peer totals lookup failed', peerError);
+  } else if (Array.isArray(peerRows) && peerRows.length > 0) {
+    const totalsMap = new Map<string, number>();
+    for (const row of peerRows as Array<{ project_id: string | null; co2e_value: number | string | null }>) {
+      if (!row.project_id) continue;
+      const value = coerceNumber(row.co2e_value) ?? 0;
+      if (value <= 0) continue;
+      totalsMap.set(row.project_id, (totalsMap.get(row.project_id) ?? 0) + value);
+    }
+    peerTotalsKg = Array.from(totalsMap.values()).filter((total) => total > 0);
+  }
+
   const normalized = buildRuleEntries(rawEntries);
-  return generateOpportunitiesFromEntries(normalized);
+  return generateOpportunitiesFromEntries(normalized, { peerTotalsKg, now: new Date() });
 }

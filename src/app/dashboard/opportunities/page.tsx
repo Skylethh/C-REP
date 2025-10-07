@@ -3,6 +3,7 @@ import { createClient } from '@/lib/server';
 import { analyzeProjectForOpportunities } from '@/lib/opportunitiesEngine';
 import OpportunityCard from '@/components/opportunities/OpportunityCard';
 import ProjectSelector from '@/components/opportunities/ProjectSelector';
+import { ProjectSummaryDialog } from '@/components/opportunities/ProjectSummaryDialog';
 import { Folder, Plus, Activity } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -72,24 +73,38 @@ export default async function OpportunitiesDashboardPage({ searchParams }: { sea
 
   return (
     <div className="space-y-6">
-      <header className="relative rounded-2xl bg-gradient-to-br from-emerald-900/40 via-ocean-900/30 to-transparent border border-white/10 shadow-lg">
-        <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-leaf-500/5 to-ocean-500/5" />
-        <div className="relative p-6 md:p-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="space-y-2">
-              <h1 className="section-title mb-2">Fırsatlar</h1>
-              <p className="text-white/70 text-base max-w-2xl">
-                Projeniz için tespit edilen kural tabanlı fırsatları keşfedin. AI ile zenginleştirerek daha detaylı öneriler alabilirsiniz.
-              </p>
+      <header className="glass-card px-5 py-4 relative z-[90] overflow-visible">
+        <div className="flex flex-col gap-3.5 md:flex-row md:items-center md:justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 px-2.5 py-0.5 border border-violet-400/30">
+                <div className="h-1 w-1 rounded-full bg-violet-400" />
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-violet-100">Fırsatlar</span>
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
-              <span className="text-xs font-medium uppercase tracking-wide text-white/60 sm:text-right">
-                Projenizi seçin
-              </span>
-              <ProjectSelector projects={projects} activeProjectId={activeProject.id} className="w-full sm:w-[260px]" />
+            <h1 className="text-xl md:text-2xl font-semibold text-white">İyileştirme Fırsatları</h1>
+            <p className="mt-1.5 text-sm text-white/60 max-w-2xl">
+              Tespit edilen fırsatları inceleyin, AI ile detaylı analizler alın.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+            <div className="flex flex-col">
+              <span className="text-[9px] font-semibold uppercase tracking-wider text-white/50 mb-1">Aktif Proje</span>
+              <ProjectSelector
+                projects={projects}
+                activeProjectId={activeProject.id}
+                className="w-full sm:w-[220px]"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <ProjectSummaryDialog
+                projectId={activeProject.id}
+                projectName={activeProject.name ?? 'Proje'}
+                aiEnabled={aiEnabled}
+              />
               <Link
                 href={`/projects/${activeProject.id}`}
-                className="btn-secondary px-4 py-2.5 rounded-lg font-medium inline-flex items-center justify-center gap-2"
+                className="btn-secondary px-3 py-2 text-sm font-medium inline-flex items-center gap-2"
               >
                 Projeye Git
               </Link>
@@ -99,37 +114,48 @@ export default async function OpportunitiesDashboardPage({ searchParams }: { sea
       </header>
 
       {opportunities.length === 0 ? (
-        <div className="glass-card text-center py-12">
-          <div className="max-w-md mx-auto space-y-4">
-            <div className="inline-flex p-4 rounded-2xl bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10 shadow-inner">
-              <Activity className="h-8 w-8 text-leaf-400" />
+        <div className="glass-card text-center py-16">
+          <div className="max-w-lg mx-auto space-y-5">
+            <div className="relative inline-flex p-5 rounded-2xl bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10 shadow-inner">
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-leaf-400/10 to-ocean-400/10 animate-pulse" />
+              <Activity className="relative h-10 w-10 text-leaf-300" />
             </div>
-            <h2 className="text-xl font-semibold text-white">Henüz Fırsat Bulunmuyor</h2>
-            <p className="text-white/70 text-sm leading-relaxed">
-              Projenize emisyon verisi ekledikçe sistem otomatik olarak iyileştirme fırsatlarını tespit edecektir.
-            </p>
-            <div className="pt-2">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-semibold text-white">Henüz Fırsat Tespit Edilmedi</h2>
+              <p className="text-white/60 text-sm leading-relaxed max-w-md mx-auto">
+                Projenize emisyon verisi eklediğinizde, sistem otomatik olarak iyileştirme fırsatlarını analiz edecektir.
+              </p>
+            </div>
+            <div className="pt-3">
               <Link
                 href={`/projects/${activeProject.id}/entries/new`}
                 className="btn-primary inline-flex items-center gap-2"
               >
                 <Plus className="h-4 w-4" />
-                Yeni Kayıt Ekle
+                İlk Kaydı Ekle
               </Link>
             </div>
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          <div className="glass rounded-xl p-4 flex flex-wrap items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-leaf-400 shadow-glow-sm" />
-              <span className="text-white/70">Toplam</span>
-              <span className="font-semibold text-white">{opportunities.length} Fırsat</span>
-            </div>
-            <div className="h-4 w-px bg-white/10" />
-            <div className="flex items-center gap-2">
-              <span className="text-white/60 text-xs">AI ile zenginleştirerek detaylı öneriler alabilirsiniz</span>
+        <div className="space-y-5">
+          <div className="glass-card px-5 py-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 border border-white/10">
+                  <div className="h-2 w-2 rounded-full bg-leaf-400 shadow-glow-sm" />
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wider font-semibold text-white/50">Tespit Edilen</p>
+                  <p className="text-lg font-semibold text-white">{opportunities.length} Fırsat</p>
+                </div>
+              </div>
+              <div className="h-8 w-px bg-white/10 hidden sm:block" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-white/60 leading-relaxed">
+                  AI ile zenginleştirerek her fırsat için detaylı öneri ve eylem adımları alabilirsiniz
+                </p>
+              </div>
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
@@ -139,7 +165,6 @@ export default async function OpportunitiesDashboardPage({ searchParams }: { sea
                 opportunity={opportunity}
                 projectId={activeProject.id}
                 aiEnabled={aiEnabled}
-                detailsHref={`/projects/${activeProject.id}`}
               />
             ))}
           </div>

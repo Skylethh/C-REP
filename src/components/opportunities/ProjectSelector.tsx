@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronsUpDown, Search, Loader2, Check } from 'lucide-react';
 
 export type ProjectSelectorProps = {
@@ -18,6 +19,14 @@ export function ProjectSelector({ projects, activeProjectId, className }: Projec
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [menuStyle, setMenuStyle] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const filteredProjects = useMemo(() => {
     if (!query) return projects;
@@ -42,7 +51,11 @@ export function ProjectSelector({ projects, activeProjectId, className }: Projec
   useEffect(() => {
     if (!isOpen) return;
     function handleClickOutside(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      if (
+        !containerRef.current?.contains(target) &&
+        !dropdownRef.current?.contains(target)
+      ) {
         setIsOpen(false);
         setQuery('');
       }
@@ -59,11 +72,37 @@ export function ProjectSelector({ projects, activeProjectId, className }: Projec
     return undefined;
   }, [isOpen]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const dropdownWidth = 288; // match w-72
+
+    const updatePosition = () => {
+      const triggerEl = triggerRef.current;
+      if (!triggerEl) return;
+      const rect = triggerEl.getBoundingClientRect();
+      const width = Math.max(rect.width, dropdownWidth);
+      setMenuStyle({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.right + window.scrollX - width,
+        width,
+      });
+    };
+
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
+
   const activeProject = useMemo(() => projects.find((project) => project.id === activeProjectId), [projects, activeProjectId]);
 
   return (
-    <div ref={containerRef} className={`relative ${className ?? ''}`}>
+    <div ref={containerRef} className={`inline-block ${className ?? ''}`}>
       <button
+        ref={triggerRef}
         type="button"
         className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-gradient-to-r from-white/5 via-white/10 to-white/5 px-4 py-2.5 text-sm font-medium text-white/80 shadow-sm hover:border-white/25 hover:from-white/10 hover:via-white/15 hover:to-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf-400/70 transition-all"
         aria-haspopup="listbox"
@@ -80,8 +119,12 @@ export function ProjectSelector({ projects, activeProjectId, className }: Projec
         )}
       </button>
 
-      {isOpen && (
-        <div className="absolute right-0 z-30 mt-2 w-72 rounded-2xl border border-white/15 bg-gradient-to-b from-slate-900/95 via-slate-900/90 to-slate-900/95 shadow-xl backdrop-blur-sm">
+      {mounted && isOpen && menuStyle && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{ top: menuStyle.top, left: menuStyle.left, width: menuStyle.width }}
+          className="fixed z-[99999] overflow-hidden rounded-2xl border border-white/20 bg-gradient-to-b from-slate-950/98 via-slate-900/96 to-slate-900/98 shadow-[0_32px_96px_-40px_rgba(2,6,23,0.9)] ring-1 ring-white/15 backdrop-blur-xl"
+        >
           <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2.5">
             <Search className="h-4 w-4 text-white/40" />
             <input
@@ -128,7 +171,8 @@ export function ProjectSelector({ projects, activeProjectId, className }: Projec
               })
             )}
           </ul>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

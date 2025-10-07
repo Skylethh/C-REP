@@ -5,7 +5,8 @@ import type { Opportunity } from "@/lib/opportunitiesEngine";
 import { createClient } from "@/lib/server";
 import { computeOpportunitySignature, formatDelta } from "./opportunities.helpers";
 
-const DEFAULT_MODEL = process.env.GROQ_OPPORTUNITIES_MODEL ?? "mixtral-8x7b-32768";
+const FALLBACK_MODEL = "llama-3.1-8b-instant";
+const DEFAULT_MODEL = resolveModelName(process.env.GROQ_OPPORTUNITIES_MODEL);
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const CACHE_TTL_MINUTES = readNumberFromEnv(process.env.OPPORTUNITIES_AI_CACHE_TTL_MINUTES, 720);
 const COOLDOWN_SECONDS = readNumberFromEnv(process.env.OPPORTUNITIES_AI_COOLDOWN_SECONDS, 60);
@@ -16,6 +17,31 @@ type ErrorReason = "cooldown" | "invalid" | "not_configured" | "unsupported" | "
 type ErrorResult = { success: false; error: string; reason?: ErrorReason; retryAt?: string };
 
 export type AIEnrichmentResult = SuccessResult | ErrorResult;
+
+type ProjectSummaryScope = { scope: string; totalKg: number; percentage: number };
+type ProjectSummaryCategory = { category: string; totalKg: number; percentage: number };
+type ProjectSummaryTrend = { currentKg: number; previousKg: number; changePercent: number | null };
+
+export type ProjectSummaryStats = {
+  totalKg: number;
+  entryCount: number;
+  scopeBreakdown: ProjectSummaryScope[];
+  topCategories: ProjectSummaryCategory[];
+  trend: ProjectSummaryTrend;
+  truncated: boolean;
+};
+
+type ProjectAISummarySuccess = {
+  success: true;
+  summary: string;
+  stats: ProjectSummaryStats;
+  source: "live" | "cache";
+  generatedAt: string;
+};
+
+type ProjectAISummaryError = { success: false; error: string };
+
+export type ProjectAISummaryResult = ProjectAISummarySuccess | ProjectAISummaryError;
 
 export async function getAIEnrichmentForOpportunity(opportunity: Opportunity, projectId: string): Promise<AIEnrichmentResult> {
   if (!isAIEnabled()) {
@@ -133,9 +159,10 @@ export async function getAIEnrichmentForOpportunity(opportunity: Opportunity, pr
 
     if (!response.ok) {
       const errorText = await safeReadResponse(response);
+      const interpreted = interpretGroqError(response.status, errorText);
       console.error("[opportunities-ai] Groq request failed", response.status, errorText);
       await recordRun(supabase, user.id, projectId, opportunityKey, callStartedAt);
-      return { success: false, error: "AI servisi şu anda yanıt vermiyor.", reason: "unknown" } satisfies ErrorResult;
+      return { success: false, error: interpreted.message, reason: interpreted.reason } satisfies ErrorResult;
     }
 
     const payload = (await response.json()) as any;
@@ -199,8 +226,9 @@ function buildPrompt(opportunity: Opportunity): string | null {
         `Kategori toplam emisyonu: ${categoryTotal}`,
         `Proje toplam emisyonu: ${projectTotal}`,
         "Projeden sorumlu yöneticiyi bilgilendirecek kısa bir açıklama yaz.",
-        "1. İlk paragrafta bu durumun neden önemli olduğunu basitçe açıkla.",
-        "2. Ardından 'Önerilen Adımlar' başlığı altında iki maddelik bir listeyle yapılabilir aksiyonları yaz.",
+        "1. İlk paragrafta bu durumun neden önemli olduğunu sade Türkçe ile özetle.",
+        "2. Ardından 'Önerilen Adımlar' başlığı altında en fazla iki maddelik uygulanabilir öneriler ver.",
+        "Yanıt toplamda 110 kelimeyi geçmesin.",
       ].join("\n");
     }
     case "TREND_INCREASE": {
@@ -214,8 +242,9 @@ function buildPrompt(opportunity: Opportunity): string | null {
         `Son dönem toplam emisyonu: ${current}`,
         `Önceki dönem toplam emisyonu: ${previous}`,
         `Artış oranı: ${increase}`,
-        "İlk paragrafta artışın etkisini ve muhtemel sebepleri sade Türkçe ile açıkla.",
-        "'Kontrol Edilecek Noktalar' başlığıyla iki-üç madde halinde pratik kontroller veya azaltım önerileri sun.",
+        "İlk paragrafta artışın etkisini ve muhtemel sebepleri sade Türkçe ile özetle.",
+        "'Kontrol Edilecek Noktalar' başlığıyla en fazla üç madde halinde pratik kontroller veya azaltım önerileri sun.",
+        "Yanıt toplamda 110 kelimeyi geçmesin.",
       ].join("\n");
     }
     case "ANOMALY_DETECTED": {
@@ -234,7 +263,46 @@ function buildPrompt(opportunity: Opportunity): string | null {
         `Kategori ortalaması: ${mean}`,
         `İstatistiksel eşik: ${threshold}`,
         "Önce bir-iki cümleyle bu sapmanın neden dikkat çektiğini anlat.",
-        "'Doğrulama Adımları' başlığıyla iki maddelik kontrol listesi öner.",
+        "'Doğrulama Adımları' başlığıyla en fazla iki maddelik kısa bir kontrol listesi öner.",
+        "Yanıt toplamda 110 kelimeyi geçmesin.",
+      ].join("\n");
+    }
+    case "COST_CARBON_IMBALANCE": {
+      const category = stringify(opportunity.data.category ?? opportunity.data.categoryKey ?? "belirtilmemiş kategori");
+      const emissionShare = numberString(opportunity.data.emissionShare, { suffix: "%" });
+      const spendShare = numberString(opportunity.data.spendShare, { suffix: "%" });
+      const emissionTotal = kgToTonString(opportunity.data.emissionKg);
+      const spendTotal = formatCurrency(opportunity.data.spendAmount, opportunity.data.currencyUnit);
+      const sampleSize = numberString(opportunity.data.sampleSize, { suffix: " kayıt", maximumFractionDigits: 0 });
+      return [
+        "Bir maliyet kaleminin karbon yoğunluğu benzer kalemlere göre çok daha yüksek görünüyor.",
+        `Kategori: ${category}`,
+        `Emisyon payı: ${emissionShare}`,
+        `Harcamadaki payı: ${spendShare}`,
+        `Toplam emisyon: ${emissionTotal}`,
+        `Tahmini harcama: ${spendTotal}`,
+        `İncelenen kayıt sayısı: ${sampleSize}`,
+        "Önce kısa bir paragrafla bu dengesizliğin bütçe-plan açısından neden kritik olduğunu açıkla.",
+        "'Yapılabilecekler' başlığıyla en fazla iki maddelik aksiyon öner.",
+        "Yanıt toplamda 110 kelimeyi geçmesin.",
+      ].join("\n");
+    }
+    case "BENCHMARK_GAP": {
+      const projectTotal = kgToTonString(opportunity.data.projectTotalKg);
+      const peerMedian = kgToTonString(opportunity.data.peerMedianKg);
+      const peerAverage = kgToTonString(opportunity.data.peerAverageKg);
+      const deltaPercent = numberString(opportunity.data.deltaPercent, { suffix: "%" });
+      const peerCount = numberString(opportunity.data.peerCount, { suffix: " proje", maximumFractionDigits: 0 });
+      return [
+        "Bir proje, aynı portföydeki benzer projelerin emisyon medyanının belirgin şekilde üzerinde.",
+        `Proje toplam emisyonu: ${projectTotal}`,
+        `Benzer projelerin medyanı: ${peerMedian}`,
+        `Ortalama değer: ${peerAverage}`,
+        `Fark oranı: ${deltaPercent}`,
+        `Kıyaslanan proje sayısı: ${peerCount}`,
+        "İlk paragrafta farkın ne anlama geldiğini ve olası kök nedenleri özetle.",
+        "'Öncelikli Adımlar' başlığıyla en fazla iki maddelik hedefli aksiyon öner.",
+        "Yanıt toplamda 110 kelimeyi geçmesin.",
       ].join("\n");
     }
     default:
@@ -249,10 +317,12 @@ function stringify(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function numberString(value: unknown, options?: { suffix?: string }): string {
+function numberString(value: unknown, options?: { suffix?: string; maximumFractionDigits?: number }): string {
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return "bilinmiyor";
-  const formatted = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 1 }).format(numeric);
+  const formatted = new Intl.NumberFormat("tr-TR", {
+    maximumFractionDigits: options?.maximumFractionDigits ?? 1,
+  }).format(numeric);
   return options?.suffix ? `${formatted}${options.suffix}` : formatted;
 }
 
@@ -263,12 +333,58 @@ function kgToTonString(value: unknown): string {
   return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 2 }).format(tons)} ton CO₂e`;
 }
 
+function formatCurrency(value: unknown, unit: unknown): string {
+  const numeric = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(numeric)) return "bilinmiyor";
+  const code = typeof unit === "string" && unit.trim() ? unit.trim().toUpperCase() : "para";
+  return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(numeric)} ${code}`;
+}
+
 async function safeReadResponse(response: Response): Promise<string> {
   try {
     return await response.text();
   } catch {
     return "";
   }
+}
+
+function interpretGroqError(status: number, errorText: string): { message: string; reason: ErrorReason } {
+  const fallback: { message: string; reason: ErrorReason } = {
+    message: "AI servisi şu anda yanıt vermiyor.",
+    reason: "unknown",
+  };
+
+  try {
+    const parsed = JSON.parse(errorText);
+    const errorPayload = (parsed?.error ?? parsed) as { code?: string; message?: string } | undefined;
+    const code = typeof errorPayload?.code === "string" ? errorPayload.code : "";
+    const message = typeof errorPayload?.message === "string" ? errorPayload.message : "";
+
+    if (code === "model_decommissioned" || message.toLowerCase().includes("decommissioned")) {
+      return {
+        message: "Seçili AI modeli artık desteklenmiyor. Lütfen yapılandırmayı güncelleyin.",
+        reason: "unsupported",
+      } satisfies { message: string; reason: ErrorReason };
+    }
+
+    if (code === "invalid_api_key" || status === 401 || status === 403) {
+      return {
+        message: "AI servis anahtarı geçersiz veya yetkisiz görünüyor. Lütfen GROQ_API_KEY değerini kontrol edin.",
+        reason: "not_configured",
+      } satisfies { message: string; reason: ErrorReason };
+    }
+
+    if (code === "rate_limit_exceeded" || status === 429) {
+      return {
+        message: "AI hizmeti kısa süreliğine yoğun. Lütfen birazdan tekrar deneyin.",
+        reason: "unknown",
+      } satisfies { message: string; reason: ErrorReason };
+    }
+  } catch {
+    // ignore JSON parsing errors
+  }
+
+  return fallback;
 }
 
 function readNumberFromEnv(value: string | undefined, fallback: number): number {
@@ -293,6 +409,23 @@ function isAIEnabled(): boolean {
   return publicValue;
 }
 
+function resolveModelName(value: string | undefined): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return FALLBACK_MODEL;
+
+  const deprecatedMap: Record<string, string> = {
+    "mixtral-8x7b-32768": FALLBACK_MODEL,
+  };
+
+  const replacement = deprecatedMap[trimmed];
+  if (replacement) {
+    console.warn(`[opportunities-ai] Model ${trimmed} deprecated; using ${replacement} instead.`);
+    return replacement;
+  }
+
+  return trimmed;
+}
+
 async function recordRun(
   supabase: SupabaseClient,
   userId: string,
@@ -312,4 +445,240 @@ async function recordRun(
   if (error) {
     console.warn("[opportunities-ai] run tracking failed", error);
   }
+}
+
+export async function getProjectAISummary(projectId: string): Promise<ProjectAISummaryResult> {
+  if (!projectId) {
+    return { success: false, error: "Proje bilgisi eksik." } satisfies ProjectAISummaryError;
+  }
+
+  if (!isAIEnabled()) {
+    return { success: false, error: "AI özelliği bu ortamda devre dışı." } satisfies ProjectAISummaryError;
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return { success: false, error: "AI entegrasyonu yapılandırılmadı (GROQ_API_KEY eksik)." } satisfies ProjectAISummaryError;
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    return { success: false, error: "Oturum doğrulanamadı." } satisfies ProjectAISummaryError;
+  }
+
+  const { rows, truncated, error: summaryError } = await loadProjectSummaryRows(supabase, projectId);
+  if (summaryError) {
+    console.error("[opportunities-ai] project summary load failed", summaryError);
+    return { success: false, error: "Proje verileri okunamadı." } satisfies ProjectAISummaryError;
+  }
+
+  if (!rows.length) {
+    return { success: false, error: "Analiz edilecek kayıt bulunamadı." } satisfies ProjectAISummaryError;
+  }
+
+  const stats = buildProjectSummaryStats(rows, truncated);
+
+  const scopeParts = stats.scopeBreakdown
+    .map((item) => `${item.scope}: %${Math.round(item.percentage)} (${kgToTonString(item.totalKg)})`)
+    .join(", ");
+  const categoryParts = stats.topCategories
+    .map((item) => `${item.category}: %${Math.round(item.percentage)} (${kgToTonString(item.totalKg)})`)
+    .join(", ");
+
+  const trendChangeText = typeof stats.trend.changePercent === "number"
+    ? `${stats.trend.changePercent >= 0 ? "+" : ""}${stats.trend.changePercent}%`
+    : "veri yok";
+
+  const prompt = [
+    "Aşağıdaki proje emisyon özetini incele ve karar vericilere yönelik kısa bir değerlendirme hazırla.",
+    `Toplam emisyon: ${kgToTonString(stats.totalKg)}`,
+    `Analiz edilen kayıt sayısı: ${stats.entryCount}${stats.truncated ? " (ilk 3000 kayıt)" : ""}`,
+    `Scope dağılımı: ${scopeParts || "veri yok"}`,
+    `En yoğun kategoriler: ${categoryParts || "veri yok"}`,
+    `Son 30 günlük emisyon: ${kgToTonString(stats.trend.currentKg)}`,
+    `Önceki 30 günlük emisyon: ${kgToTonString(stats.trend.previousKg)}`,
+    `Değişim oranı: ${trendChangeText}`,
+    "1. En fazla iki cümleyle projenin mevcut durumunu özetle.",
+    "2. 'Öne Çıkan Güçlü Alanlar' başlığıyla en fazla iki maddelik olumlu gözlem yaz.",
+    "3. 'Önerilen İyileştirmeler' başlığıyla en fazla iki maddelik aksiyon öner.",
+    "Yanıt toplamda 130 kelimeyi geçmesin. Sade ve motive edici Türkçe kullan.",
+  ].join("\n");
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: DEFAULT_MODEL,
+        temperature: 0.3,
+        max_tokens: 600,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are an expert sustainability consultant for the Turkish construction industry. Always respond in concise Turkish.",
+          },
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await safeReadResponse(response);
+      const interpreted = interpretGroqError(response.status, errorText);
+      console.error("[opportunities-ai] project summary Groq request failed", response.status, errorText);
+      return { success: false, error: interpreted.message } satisfies ProjectAISummaryError;
+    }
+
+    const payload = (await response.json()) as any;
+    const summary = String(payload?.choices?.[0]?.message?.content ?? "").trim();
+    if (!summary) {
+      return { success: false, error: "AI özet üretemedi." } satisfies ProjectAISummaryError;
+    }
+
+    return {
+      success: true,
+      summary,
+      stats,
+      source: "live",
+      generatedAt: new Date().toISOString(),
+    } satisfies ProjectAISummarySuccess;
+  } catch (error) {
+    console.error("[opportunities-ai] project summary unexpected error", error);
+    return { success: false, error: "AI özet oluşturulurken bir hata oluştu." } satisfies ProjectAISummaryError;
+  }
+}
+
+type SummaryRow = {
+  co2e_value: number | string | null;
+  scope: string | null;
+  category: string | null;
+  date: string | null;
+};
+
+async function loadProjectSummaryRows(
+  supabase: SupabaseClient,
+  projectId: string,
+): Promise<{ rows: SummaryRow[]; truncated: boolean; error: Error | null }>
+{
+  const PAGE_SIZE = 1000;
+  const MAX_RECORDS = 3000;
+  let from = 0;
+  let to = PAGE_SIZE - 1;
+  const rows: SummaryRow[] = [];
+  let totalCount: number | null = null;
+
+  while (from <= MAX_RECORDS - PAGE_SIZE && (totalCount === null || from < Math.min(totalCount, MAX_RECORDS))) {
+    const { data, error, count } = await supabase
+      .from("entries")
+      .select("co2e_value, scope, category, date", { count: "exact" })
+      .eq("project_id", projectId)
+      .order("date", { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      return { rows: [], truncated: false, error };
+    }
+
+    if (Array.isArray(data)) {
+      rows.push(...(data as SummaryRow[]));
+    }
+
+    if (count !== null && count !== undefined) {
+      totalCount = count;
+      if (rows.length >= Math.min(totalCount, MAX_RECORDS)) {
+        break;
+      }
+    } else if (!data || data.length < PAGE_SIZE) {
+      break;
+    }
+
+    from += PAGE_SIZE;
+    to = Math.min(from + PAGE_SIZE - 1, MAX_RECORDS - 1);
+  }
+
+  const truncated = totalCount !== null ? rows.length < totalCount : false;
+  return { rows, truncated, error: null };
+}
+
+function buildProjectSummaryStats(rows: SummaryRow[], truncated: boolean): ProjectSummaryStats {
+  let totalKg = 0;
+  const scopeMap = new Map<string, number>();
+  const categoryMap = new Map<string, number>();
+  const now = new Date();
+  const currentWindowStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  currentWindowStart.setUTCDate(currentWindowStart.getUTCDate() - 29);
+  const previousWindowStart = new Date(currentWindowStart);
+  previousWindowStart.setUTCDate(previousWindowStart.getUTCDate() - 30);
+
+  let currentWindowTotal = 0;
+  let previousWindowTotal = 0;
+
+  for (const row of rows) {
+    const value = typeof row.co2e_value === "number" ? row.co2e_value : Number(row.co2e_value);
+    if (!Number.isFinite(value) || value <= 0) continue;
+    totalKg += value;
+
+    const scopeKey = (row.scope ?? "belirtilmedi").toLowerCase();
+    scopeMap.set(scopeKey, (scopeMap.get(scopeKey) ?? 0) + value);
+
+    const categoryKey = (row.category ?? "Belirtilmeyen").trim() || "Belirtilmeyen";
+    categoryMap.set(categoryKey, (categoryMap.get(categoryKey) ?? 0) + value);
+
+    if (row.date) {
+      const parsed = new Date(row.date);
+      if (Number.isFinite(parsed.getTime())) {
+        const dateUTC = new Date(Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()));
+        if (dateUTC >= currentWindowStart) {
+          currentWindowTotal += value;
+        } else if (dateUTC >= previousWindowStart && dateUTC < currentWindowStart) {
+          previousWindowTotal += value;
+        }
+      }
+    }
+  }
+
+  const scopeBreakdown: ProjectSummaryScope[] = Array.from(scopeMap.entries())
+    .map(([scope, total]) => ({
+      scope: scope || "belirtilmedi",
+      totalKg: total,
+      percentage: totalKg > 0 ? (total / totalKg) * 100 : 0,
+    }))
+    .sort((a, b) => b.totalKg - a.totalKg);
+
+  const topCategories: ProjectSummaryCategory[] = Array.from(categoryMap.entries())
+    .map(([category, total]) => ({
+      category,
+      totalKg: total,
+      percentage: totalKg > 0 ? (total / totalKg) * 100 : 0,
+    }))
+    .sort((a, b) => b.totalKg - a.totalKg)
+    .slice(0, 3);
+
+  let changePercent: number | null = null;
+  if (previousWindowTotal > 0) {
+    changePercent = Math.round(((currentWindowTotal - previousWindowTotal) / previousWindowTotal) * 100);
+  } else if (currentWindowTotal > 0) {
+    changePercent = 100;
+  }
+
+  return {
+    totalKg,
+    entryCount: rows.length,
+    scopeBreakdown,
+    topCategories,
+    trend: {
+      currentKg: currentWindowTotal,
+      previousKg: previousWindowTotal,
+      changePercent,
+    },
+    truncated,
+  } satisfies ProjectSummaryStats;
 }

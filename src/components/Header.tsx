@@ -33,17 +33,6 @@ export function Header({ user }: { user?: { email?: string } | null }) {
               </Link>
             </div>
             
-            {/* Language selector */}
-            <div className="flex items-center">
-              <Link href="#" className="text-sm text-white/70 hover:text-white transition-colors">
-                TR
-              </Link>
-              <span className="mx-1 text-white/30">|</span>
-              <Link href="#" className="text-sm text-white/70 hover:text-white transition-colors">
-                EN
-              </Link>
-            </div>
-            
             <div className="hidden md:flex items-center gap-2">
               <Link href="/login">
                 <Button variant="ghost" className="text-sm hover:text-leaf-400">
@@ -116,17 +105,6 @@ export function Header({ user }: { user?: { email?: string } | null }) {
             </Link>
             <Link href={{ pathname: '/dashboard/opportunities' }} className="text-sm text-white/80 hover:text-white transition-colors">
               Fırsatlar
-            </Link>
-          </div>
-          
-          {/* Language selector */}
-          <div className="flex items-center">
-            <Link href="#" className="text-sm text-white/70 hover:text-white transition-colors">
-              TR
-            </Link>
-            <span className="mx-1 text-white/30">|</span>
-            <Link href="#" className="text-sm text-white/70 hover:text-white transition-colors">
-              EN
             </Link>
           </div>
           

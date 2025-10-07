@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/server';
 import { analyzeProjectForOpportunities } from '@/lib/opportunitiesEngine';
 import OpportunityCard from '@/components/opportunities/OpportunityCard';
+import { ProjectSummaryDialog } from '@/components/opportunities/ProjectSummaryDialog';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,8 +36,9 @@ export default async function ProjectOpportunitiesPage({ params }: { params: Pro
                 <p className="text-white/70">{project.name} için kural tabanlı içgörüler</p>
               </div>
             </div>
-            <div className="flex flex-col sm:items-end gap-2 sm:self-start text-white/70 text-sm">
-              Toplanan veriler fırsatları otomatik olarak güncelleyecek.
+            <div className="flex flex-col sm:items-end gap-3 sm:self-start text-white/70 text-sm">
+              <ProjectSummaryDialog projectId={project.id} projectName={project.name} aiEnabled={aiEnabled} />
+              <span className="text-white/70">Toplanan veriler fırsatları otomatik olarak güncelleyecek.</span>
             </div>
           </div>
         </div>
@@ -60,7 +62,6 @@ export default async function ProjectOpportunitiesPage({ params }: { params: Pro
               opportunity={opportunity}
               projectId={project.id}
               aiEnabled={aiEnabled}
-              detailsHref={`/projects/${project.id}`}
             />
           ))}
         </div>
