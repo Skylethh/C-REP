@@ -29,7 +29,7 @@ type ProfileSettingsClientProps = {
 
 function ToggleRow({ label, description, value, onChange }: ToggleProps) {
   return (
-    <div className="group flex items-start justify-between gap-4 rounded-xl border border-white/20 bg-gradient-to-br from-slate-950/40 to-slate-900/20 px-4 py-3.5 transition-all hover:border-white/25 hover:from-slate-950/60 hover:to-slate-900/30 backdrop-blur-sm">
+    <div className="group flex items-start justify-between gap-4 rounded-xl border border-white/20 bg-gradient-to-br from-emerald-950/60 to-ocean-950/40 px-4 py-3.5 transition-all hover:border-white/25 hover:from-emerald-950/80 hover:to-ocean-950/60 backdrop-blur-sm">
       <div className="flex-1">
         <p className="text-sm font-medium text-white/90">{label}</p>
         {description ? <p className="mt-1 text-xs leading-relaxed text-white/55">{description}</p> : null}
@@ -39,8 +39,8 @@ function ToggleRow({ label, description, value, onChange }: ToggleProps) {
         role="switch"
         aria-checked={value}
         onClick={() => onChange(!value)}
-        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${
-          value ? "bg-gradient-to-r from-leaf-500 to-ocean-500 shadow-glow-sm" : "bg-slate-800/60"
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-leaf-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-950 ${
+          value ? "bg-gradient-to-r from-leaf-500 to-ocean-500 shadow-glow-sm" : "bg-emerald-900/60"
         }`}
       >
         <span
@@ -53,9 +53,9 @@ function ToggleRow({ label, description, value, onChange }: ToggleProps) {
   );
 }
 
-// Improved theming for settings panels
-const settingsPanelClass = "border border-white/20 bg-gradient-to-br from-slate-950/60 to-slate-900/40 backdrop-blur-xl p-6 rounded-xl shadow-2xl transition-all duration-300 hover:border-white/25 hover:from-slate-950/70 hover:to-slate-900/50";
-const settingsInsetClass = "rounded-xl border border-white/25 bg-slate-950/50 backdrop-blur-md";
+// Improved theming for settings panels - aligned with project theme
+const settingsPanelClass = "border border-white/20 bg-gradient-to-br from-emerald-950/60 to-ocean-950/40 backdrop-blur-xl p-6 rounded-xl shadow-2xl transition-all duration-300 hover:border-white/25 hover:from-emerald-950/70 hover:to-ocean-950/50 hover:shadow-glow-sm hover:translate-y-[-2px]";
+const settingsInsetClass = "rounded-xl border border-white/25 bg-emerald-950/50 backdrop-blur-md transition-all duration-200 hover:border-white/30";
 
 export default function ProfileSettingsClient({
   initialDisplayName,
@@ -105,10 +105,11 @@ export default function ProfileSettingsClient({
       {/* Enhanced Header */}
       <header className={`${settingsPanelClass} relative overflow-hidden`}>
         <div className="absolute inset-0 bg-gradient-to-br from-leaf-500/8 via-transparent to-ocean-500/8 pointer-events-none" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-leaf-400/20 to-ocean-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="relative flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
           <div className="flex-1">
-            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-leaf-500/20 to-ocean-500/20 px-3 py-1 border border-leaf-400/30 mb-3">
-              <div className="h-1.5 w-1.5 rounded-full bg-leaf-400 shadow-glow-sm" />
+            <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-leaf-500/20 to-ocean-500/20 px-3 py-1 border border-leaf-400/30 mb-3 shadow-glow-sm">
+              <div className="h-1.5 w-1.5 rounded-full bg-leaf-400 shadow-glow-sm animate-pulse" />
               <span className="text-xs font-semibold uppercase tracking-wider text-leaf-100">Ayarlar</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-semibold text-white leading-tight">
@@ -118,9 +119,9 @@ export default function ProfileSettingsClient({
               Profil bilgilerinizi güncelleyin, bildirim tercihlerinizi yapılandırın ve AI özelliklerini yönetin.
             </p>
           </div>
-          <div className={`${settingsInsetClass} px-5 py-4 shadow-xl`}>
+          <div className={`${settingsInsetClass} px-5 py-4 shadow-xl border-leaf-400/20`}>
             <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/50">Aktif Tema</p>
-            <p className="mt-1.5 text-base font-semibold text-white">{accentSummary}</p>
+            <p className="mt-1.5 text-base font-semibold highlight-text">{accentSummary}</p>
             <p className="mt-1 text-xs text-white/60">{jobTitle}</p>
           </div>
         </div>
@@ -179,12 +180,17 @@ export default function ProfileSettingsClient({
             </div>
 
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button type="button" onClick={handleSave} className="btn-primary">
+              <button 
+                type="button" 
+                onClick={handleSave} 
+                className={`btn-primary transition-all duration-200 ${saveState === "saving" ? "opacity-75" : ""}`}
+                disabled={saveState === "saving"}
+              >
                 {saveState === "saving" ? "Kaydediliyor..." : saveState === "saved" ? "✓ Kaydedildi" : "Değişiklikleri Kaydet"}
               </button>
               {saveState === "saved" ? (
                 <span className="text-xs text-leaf-300 flex items-center gap-1.5">
-                  <div className="h-1.5 w-1.5 rounded-full bg-leaf-400" />
+                  <div className="h-1.5 w-1.5 rounded-full bg-leaf-400 animate-pulse" />
                   Son kayıt {new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               ) : null}
@@ -260,8 +266,8 @@ export default function ProfileSettingsClient({
           {/* AI Workflows Section */}
           <section className={settingsPanelClass}>
             <div className="flex items-start gap-4">
-              <div className="rounded-xl bg-gradient-to-br from-violet-500/15 to-fuchsia-500/15 p-3 border border-white/25 shadow-inner">
-                <Sparkles className="h-5 w-5 text-violet-300" />
+              <div className="rounded-xl bg-gradient-to-br from-leaf-500/15 to-ocean-500/15 p-3 border border-white/25 shadow-inner">
+                <Sparkles className="h-5 w-5 text-leaf-300" />
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-semibold text-white">AI İş Akışları</h2>
@@ -293,7 +299,7 @@ export default function ProfileSettingsClient({
 
               <div className={`${settingsInsetClass} px-4 py-3.5 mt-4 shadow-lg`}>
                 <div className="flex items-center gap-2 mb-2">
-                  <Sparkles className="h-3.5 w-3.5 text-violet-300" />
+                  <Sparkles className="h-3.5 w-3.5 text-leaf-300" />
                   <p className="text-xs font-semibold uppercase tracking-wider text-white/80">Model Bilgisi</p>
                 </div>
                 <p className="text-sm text-white/70">
@@ -378,8 +384,8 @@ export default function ProfileSettingsClient({
           {/* Workspace Section */}
           <section className={settingsPanelClass}>
             <div className="flex items-start gap-4">
-              <div className="rounded-xl bg-gradient-to-br from-sky-500/15 to-cyan-500/15 p-3 border border-white/25 shadow-inner">
-                <Globe className="h-5 w-5 text-sky-300" />
+              <div className="rounded-xl bg-gradient-to-br from-ocean-500/15 to-leaf-500/15 p-3 border border-white/25 shadow-inner">
+                <Globe className="h-5 w-5 text-ocean-300" />
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-semibold text-white">Çalışma Alanı</h2>
@@ -390,33 +396,33 @@ export default function ProfileSettingsClient({
             </div>
 
             <div className="mt-6 space-y-3">
-              <div className="flex items-center justify-between rounded-xl border border-white/25 bg-slate-950/40 px-4 py-3 hover:border-white/30 hover:bg-slate-950/60 transition-colors backdrop-blur-sm">
+              <div className="flex items-center justify-between rounded-xl border border-white/25 bg-emerald-950/40 px-4 py-3 hover:border-white/30 hover:bg-emerald-950/60 transition-colors backdrop-blur-sm">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <Wifi className="h-4 w-4 text-sky-300 flex-shrink-0" />
+                  <Wifi className="h-4 w-4 text-ocean-300 flex-shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium text-white text-sm">Son Bağlantı</p>
                     <p className="text-xs text-white/60">Bugün 09:12 — İstanbul</p>
                   </div>
                 </div>
-                <span className="rounded-full bg-slate-800/60 px-2.5 py-1 text-[10px] uppercase tracking-wide text-white/50 whitespace-nowrap">
+                <span className="rounded-full bg-emerald-800/60 px-2.5 py-1 text-[10px] uppercase tracking-wide text-white/50 whitespace-nowrap">
                   Chrome
                 </span>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-white/25 bg-slate-950/40 px-4 py-3 hover:border-white/30 hover:bg-slate-950/60 transition-colors backdrop-blur-sm">
+              <div className="flex items-center justify-between rounded-xl border border-white/25 bg-emerald-950/40 px-4 py-3 hover:border-white/30 hover:bg-emerald-950/60 transition-colors backdrop-blur-sm">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <SlidersHorizontal className="h-4 w-4 text-sky-300 flex-shrink-0" />
+                  <SlidersHorizontal className="h-4 w-4 text-ocean-300 flex-shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium text-white text-sm">Entegrasyonlar</p>
                     <p className="text-xs text-white/60 truncate">Supabase, Slack, PowerBI</p>
                   </div>
                 </div>
-                <button className="rounded-md border border-white/25 px-3 py-1 text-[11px] text-white/80 transition hover:border-white/30 hover:bg-slate-950/60 whitespace-nowrap">
+                <button className="rounded-md border border-white/25 px-3 py-1 text-[11px] text-white/80 transition hover:border-white/30 hover:bg-emerald-950/60 whitespace-nowrap">
                   Yönet
                 </button>
               </div>
-              <div className="flex items-center justify-between rounded-xl border border-white/25 bg-slate-950/40 px-4 py-3 hover:border-white/30 hover:bg-slate-950/60 transition-colors backdrop-blur-sm">
+              <div className="flex items-center justify-between rounded-xl border border-white/25 bg-emerald-950/40 px-4 py-3 hover:border-white/30 hover:bg-emerald-950/60 transition-colors backdrop-blur-sm">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <Mail className="h-4 w-4 text-sky-300 flex-shrink-0" />
+                  <Mail className="h-4 w-4 text-ocean-300 flex-shrink-0" />
                   <div className="min-w-0">
                     <p className="font-medium text-white text-sm">Bildirim Kanalları</p>
                     <p className="text-xs text-white/60">E-posta, Slack (beta)</p>
@@ -449,7 +455,7 @@ export default function ProfileSettingsClient({
                 <span className="h-1 w-1 rounded-full bg-leaf-400" />
                 Kapak gradyanı: {accentSummary}
               </p>
-              <button className="btn-secondary w-full px-4 py-2 text-sm text-white/80 mt-3">
+              <button className="w-full px-4 py-2 text-sm text-white/80 mt-3 rounded-lg border border-white/20 bg-gradient-to-r from-leaf-500/10 to-ocean-500/10 hover:from-leaf-500/20 hover:to-ocean-500/20 hover:border-white/30 transition-all duration-200">
                 Şablonu Düzenle
               </button>
             </div>

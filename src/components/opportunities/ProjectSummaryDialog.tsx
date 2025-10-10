@@ -88,8 +88,8 @@ export function ProjectSummaryDialog({ projectId, projectName, aiEnabled }: Proj
         </button>
       </Dialog.Trigger>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 flex w-full max-h-[88vh] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-slate-950/95 to-indigo-950/95 shadow-glow-lg">
+        <Dialog.Overlay className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-[130] flex w-full max-h-[88vh] max-w-3xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-b from-slate-950/95 to-indigo-950/95 shadow-glow-lg">
           <div className="flex items-start justify-between gap-4 border-b border-white/10 bg-white/5 px-6 py-5">
             <div>
               <Dialog.Title className="text-lg font-semibold text-white">{projectName} – Genel Analiz</Dialog.Title>
