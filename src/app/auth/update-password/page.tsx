@@ -13,35 +13,59 @@ export default function UpdatePasswordPage({ searchParams }: { searchParams?: Re
   const [sessionReady, setSessionReady] = useState(false);
 
   useEffect(() => {
-    // Supabase recovery links send tokens in the hash fragment; hydrate the session before allowing the form.
-    const hash = typeof window !== 'undefined' ? window.location.hash : '';
-    if (!hash) {
-      setSessionReady(true);
-      return;
-    }
+    let cancelled = false;
 
-    const params = new URLSearchParams(hash.replace(/^#/, ''));
-    const accessToken = params.get('access_token');
-    const refreshToken = params.get('refresh_token');
+    async function hydrateSession() {
+      const hasWindow = typeof window !== 'undefined';
+      const hash = hasWindow ? window.location.hash : '';
+      const search = hasWindow ? window.location.search : '';
+      const hashParams = new URLSearchParams(hash.replace(/^#/, ''));
+      const queryParams = new URLSearchParams(search.replace(/^\?/, ''));
 
-    if (!accessToken || !refreshToken) {
-      setSessionReady(true);
-      return;
-    }
+      const hashAccessToken = hashParams.get('access_token');
+      const hashRefreshToken = hashParams.get('refresh_token');
+      const codeParam = queryParams.get('code');
 
-    supabaseBrowser.auth
-      .setSession({ access_token: accessToken, refresh_token: refreshToken })
-      .then(({ error: sessionError }) => {
-        if (sessionError) {
-          setError('Bağlantı geçersiz veya süresi dolmuş görünüyor. Lütfen yeni bir sıfırlama bağlantısı isteyin.');
-        } else if (typeof window !== 'undefined') {
-          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+      try {
+        if (hashAccessToken && hashRefreshToken) {
+          const { error: sessionError } = await supabaseBrowser.auth.setSession({
+            access_token: hashAccessToken,
+            refresh_token: hashRefreshToken
+          });
+          if (sessionError && !cancelled) {
+            setError('Bağlantı geçersiz veya süresi dolmuş görünüyor. Lütfen yeni bir sıfırlama bağlantısı isteyin.');
+          }
+          if (!sessionError && hasWindow) {
+            window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+          }
+        } else if (codeParam) {
+          const { error: codeError } = await supabaseBrowser.auth.exchangeCodeForSession(codeParam);
+          if (codeError && !cancelled) {
+            setError('Bağlantı doğrulanırken bir sorun oluştu. Lütfen yeni bir sıfırlama bağlantısı isteyin.');
+          } else if (hasWindow) {
+            const cleaned = new URL(window.location.href);
+            cleaned.searchParams.delete('code');
+            cleaned.searchParams.delete('type');
+            cleaned.searchParams.delete('next');
+            window.history.replaceState({}, document.title, cleaned.pathname + cleaned.search + cleaned.hash);
+          }
         }
-      })
-      .catch(() => {
-        setError('Oturum kurulurken bir sorun oluştu. Lütfen yeniden deneyin.');
-      })
-      .finally(() => setSessionReady(true));
+      } catch (sessionErr) {
+        if (!cancelled) {
+          setError('Oturum kurulurken bir sorun oluştu. Lütfen yeniden deneyin.');
+        }
+      } finally {
+        if (!cancelled) {
+          setSessionReady(true);
+        }
+      }
+    }
+
+    hydrateSession();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
