@@ -2,13 +2,47 @@
 
 import { updatePassword } from '@/app/auth/server';
 import { Button } from '@/components/button';
+import { supabaseBrowser } from '@/lib/client';
 import { Leaf, Lock, ArrowRight, Check, ShieldCheck } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export default function UpdatePasswordPage({ searchParams }: { searchParams?: Record<string, string | string[] | undefined> }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(searchParams?.error ? String(searchParams.error) : null);
+  const [sessionReady, setSessionReady] = useState(false);
+
+  useEffect(() => {
+    // Supabase recovery links send tokens in the hash fragment; hydrate the session before allowing the form.
+    const hash = typeof window !== 'undefined' ? window.location.hash : '';
+    if (!hash) {
+      setSessionReady(true);
+      return;
+    }
+
+    const params = new URLSearchParams(hash.replace(/^#/, ''));
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+
+    if (!accessToken || !refreshToken) {
+      setSessionReady(true);
+      return;
+    }
+
+    supabaseBrowser.auth
+      .setSession({ access_token: accessToken, refresh_token: refreshToken })
+      .then(({ error: sessionError }) => {
+        if (sessionError) {
+          setError('Bağlantı geçersiz veya süresi dolmuş görünüyor. Lütfen yeni bir sıfırlama bağlantısı isteyin.');
+        } else if (typeof window !== 'undefined') {
+          window.history.replaceState({}, document.title, window.location.pathname + window.location.search);
+        }
+      })
+      .catch(() => {
+        setError('Oturum kurulurken bir sorun oluştu. Lütfen yeniden deneyin.');
+      })
+      .finally(() => setSessionReady(true));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -102,9 +136,10 @@ export default function UpdatePasswordPage({ searchParams }: { searchParams?: Re
             <div className="pt-2">
               <Button 
                 type="submit" 
-                className="w-full bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500 py-3 rounded-lg shadow-glow-sm hover:shadow-glow-md transition-all flex items-center justify-center"
+                disabled={!sessionReady}
+                className="w-full bg-gradient-to-r from-leaf-600 to-ocean-600 hover:from-leaf-500 hover:to-ocean-500 py-3 rounded-lg shadow-glow-sm hover:shadow-glow-md transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <span>Şifreyi Güncelle</span>
+                <span>{sessionReady ? 'Şifreyi Güncelle' : 'Bağlantı doğrulanıyor…'}</span>
                 <ArrowRight size={16} className="ml-2" />
               </Button>
             </div>

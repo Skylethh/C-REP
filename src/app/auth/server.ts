@@ -8,7 +8,10 @@ export async function requestPasswordReset(formData: FormData) {
   if (!email) redirect(('/auth/reset?error=missing_email') as Route);
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000') + '/auth/update-password'
+    redirectTo: new URL(
+      '/auth/update-password',
+      (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '')
+    ).toString()
   });
   if (error) redirect(('/auth/reset?error=' + encodeURIComponent(error.message)) as Route);
   redirect(('/auth/reset?info=sent') as Route);
