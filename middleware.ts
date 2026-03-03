@@ -6,7 +6,7 @@ const WINDOW_MS = 60_000; // 1 minute
 const ipHits = new Map<string, { count: number; ts: number }>();
 
 // Public routes that don't require authentication
-const PUBLIC_ROUTES = ['/', '/login', '/auth', '/api', '/sentry-example-page'];
+const PUBLIC_ROUTES = ['/', '/login', '/auth', '/api'];
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(route =>
