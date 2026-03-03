@@ -1,12 +1,14 @@
-import { 
-  Leaf, BarChart2, Shield, Globe, LineChart, 
-  FileCheck, Users, ChevronRight, Mail, Phone, 
-  MapPin, Instagram, Twitter, Linkedin, Facebook 
+import {
+  Leaf, BarChart2, Shield, Globe, LineChart,
+  FileCheck, Users, ChevronRight, Mail, Phone,
+  MapPin, Linkedin, Instagram,
+  Award, Sparkles
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/button';
 import { createClient } from '@/lib/server';
 import { redirect } from 'next/navigation';
+import LeadForm from '@/components/lead-form';
 
 export default async function Page() {
   // Check if user is logged in, redirect to dashboard if they are
@@ -24,44 +26,45 @@ export default async function Page() {
         <div className="absolute bottom-20 -left-20 w-80 h-80 bg-ocean-500/10 rounded-full blur-3xl"></div>
         <div className="absolute top-1/3 right-1/4 w-60 h-60 bg-sky-500/5 rounded-full blur-3xl"></div>
       </div>
-      
+
       {/* Hero Section */}
       <section className="pt-2 pb-16 md:pt-4 md:pb-24 overflow-hidden">
-  <div className="app-container">
+        <div className="app-container">
           <div className="flex flex-col lg:flex-row items-center gap-8">
             {/* Hero Content */}
             <div className="lg:w-1/2 space-y-8">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm">
-                <span className="bg-gradient-to-r from-leaf-400 to-ocean-400 rounded-full w-2 h-2"></span>
-                <span>Sürdürülebilir Gelecek İçin</span>
+                <span className="bg-gradient-to-r from-leaf-400 to-ocean-400 rounded-full w-2 h-2 animate-pulse"></span>
+                <span>Seçkin Sanayi Ortakları İçin Kapalı Beta</span>
               </div>
-              
+
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight">
                 Karbon <span className="highlight-text">Emisyonlarınızı</span> Profesyonelce Yönetin
               </h1>
-              
+
               <p className="text-lg text-white/70 max-w-2xl">
                 C-REP, kuruluşunuzun karbon ayak izini proje bazında takip etmenizi, hesaplamanızı ve raporlamanızı sağlayan profesyonel bir platformdur.
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <Link href="/signup">
+                <a href="#demo-form">
                   <Button size="lg" className="w-full sm:w-auto btn-primary">
-                    Hesap Oluştur
+                    <ChevronRight size={16} className="mr-2" />
+                    Demo Talep Et
                   </Button>
-                </Link>
+                </a>
                 <Link href="/login">
                   <Button size="lg" variant="outline" className="w-full sm:w-auto btn-secondary">
                     Giriş Yap
                   </Button>
                 </Link>
               </div>
-              
+
               <div className="pt-8 flex flex-col sm:flex-row items-center sm:justify-start gap-6 text-sm text-white/70 sm:pl-0">
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 rounded-full bg-gradient-to-r from-leaf-400 to-ocean-400 flex items-center justify-center">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                   <span>Kolay Kullanım</span>
@@ -69,7 +72,7 @@ export default async function Page() {
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 rounded-full bg-gradient-to-r from-leaf-400 to-ocean-400 flex items-center justify-center">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                   <span>Güvenli Veri Saklama</span>
@@ -77,14 +80,14 @@ export default async function Page() {
                 <div className="flex items-center gap-2">
                   <div className="w-5 h-5 rounded-full bg-gradient-to-r from-leaf-400 to-ocean-400 flex items-center justify-center">
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M10 3L4.5 8.5L2 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
-                  <span>7/24 Destek</span>
+                  <span>ISO 14064 Uyumlu</span>
                 </div>
               </div>
             </div>
-            
+
             {/* Hero Image */}
             <div className="lg:w-1/2 relative">
               <div className="glass p-4 md:p-6 rounded-2xl overflow-hidden">
@@ -105,14 +108,14 @@ export default async function Page() {
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Floating elements */}
                   <div className="absolute top-8 right-12 w-12 h-12 bg-leaf-500/20 rounded-lg animate-float"></div>
                   <div className="absolute bottom-12 left-8 w-10 h-10 bg-ocean-500/20 rounded-lg animate-float-slow"></div>
                   <div className="absolute top-1/2 left-1/4 w-8 h-8 bg-sky-500/20 rounded-lg animate-float-fast"></div>
                 </div>
               </div>
-              
+
               {/* Decorative Element */}
               <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
                 <div className="glass px-6 py-3 rounded-xl shadow-glow-md flex items-center gap-3 border border-white/20 whitespace-nowrap">
@@ -125,10 +128,26 @@ export default async function Page() {
           </div>
         </div>
       </section>
-      
+
+      {/* Social Proof */}
+      <section className="py-6">
+        <div className="app-container">
+          <div className="glass p-4 md:p-6 rounded-2xl max-w-2xl mx-auto text-center border border-yellow-500/20 bg-yellow-500/5">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Award size={28} className="text-yellow-400 shrink-0" />
+              <div>
+                <p className="text-sm md:text-base font-semibold text-white">
+                  🏆 Boğaziçi Üniversitesi Bright Master Class Kuluçka Programı <span className="highlight-text">Birincisi</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features Section */}
       <section id="features" className="py-16 md:py-20">
-  <div className="app-container">
+        <div className="app-container">
           <div className="text-center mb-12">
             <h2 className="section-title">
               Profesyonel <span className="highlight-text">Özellikler</span>
@@ -137,7 +156,7 @@ export default async function Page() {
               C-REP, karbon emisyonlarınızı yönetmek için ihtiyacınız olan tüm profesyonel araçları sunar.
             </p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
             {/* Feature 1 */}
             <div className="glass-card">
@@ -149,7 +168,7 @@ export default async function Page() {
                 Enerji, ulaşım ve malzeme kaynaklı emisyonlarınızı proje bazında takip edin ve profesyonel raporlar oluşturun.
               </p>
             </div>
-            
+
             {/* Feature 2 */}
             <div className="glass-card">
               <div className="feature-icon">
@@ -160,7 +179,7 @@ export default async function Page() {
                 Emisyon verilerinizi zaman içinde analiz edin, trendleri belirleyin ve gelecek tahminleri yapın.
               </p>
             </div>
-            
+
             {/* Feature 3 */}
             <div className="glass-card">
               <div className="feature-icon">
@@ -171,7 +190,7 @@ export default async function Page() {
                 Emisyon verilerinizi destekleyen belgeleri güvenle saklayın ve gerektiğinde kolayca erişin.
               </p>
             </div>
-            
+
             {/* Feature 4 */}
             <div className="glass-card">
               <div className="feature-icon">
@@ -182,18 +201,18 @@ export default async function Page() {
                 Ekip üyelerinizi projelere davet edin ve rol bazlı erişim ile veri güvenliğini sağlayın.
               </p>
             </div>
-            
+
             {/* Feature 5 */}
             <div className="glass-card">
               <div className="feature-icon">
                 <Globe size={24} className="text-white" />
               </div>
-              <h3 className="text-xl font-medium mb-3">Çok Dilli Destek</h3>
+              <h3 className="text-xl font-medium mb-3">Yapay Zeka Destekli Analiz</h3>
               <p className="text-white/70">
-                Türkçe ve İngilizce dil desteği ile global ekipler için ideal çözüm sunuyoruz.
+                AI motorumuz emisyon verilerinizi analiz eder, azaltım fırsatlarını belirler ve stratejik öneriler sunar.
               </p>
             </div>
-            
+
             {/* Feature 6 */}
             <div className="glass-card">
               <div className="feature-icon">
@@ -207,14 +226,14 @@ export default async function Page() {
           </div>
         </div>
       </section>
-      
+
       {/* How It Works */}
       <section id="how-it-works" className="py-24 relative">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-leaf-500/10 rounded-full blur-3xl"></div>
         </div>
-        
-  <div className="app-container relative z-10">
+
+        <div className="app-container relative z-10">
           <div className="text-center mb-16">
             <h2 className="section-title">
               Nasıl <span className="highlight-text">Çalışır?</span>
@@ -223,7 +242,7 @@ export default async function Page() {
               C-REP ile karbon emisyonlarınızı yönetmek çok kolay
             </p>
           </div>
-          
+
           <div className="max-w-4xl mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
               {/* Step 1 */}
@@ -235,13 +254,13 @@ export default async function Page() {
                   <div className="w-16 h-16 mx-auto rounded-full bg-white/10 flex items-center justify-center mb-4">
                     <Users size={28} className="text-leaf-400" />
                   </div>
-                  <h3 className="text-lg font-medium mb-2">Hesap Oluşturun</h3>
+                  <h3 className="text-lg font-medium mb-2">Demo Talep Edin</h3>
                   <p className="text-white/70 text-sm">
-                    Hesabınızı oluşturun ve platformu hemen kullanmaya başlayın.
+                    İletişim formunu doldurun, size en kısa sürede dönüş yapalım.
                   </p>
                 </div>
               </div>
-              
+
               {/* Step 2 */}
               <div className="glass p-6 text-center relative">
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-gradient-to-r from-leaf-500 to-ocean-500 flex items-center justify-center font-bold text-white">
@@ -257,7 +276,7 @@ export default async function Page() {
                   </p>
                 </div>
               </div>
-              
+
               {/* Step 3 */}
               <div className="glass p-6 text-center relative">
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-gradient-to-r from-leaf-500 to-ocean-500 flex items-center justify-center font-bold text-white">
@@ -274,50 +293,43 @@ export default async function Page() {
                 </div>
               </div>
             </div>
-            
-              <div className="text-center mt-12">
-              <Link href="/signup">
+
+            <div className="text-center mt-12">
+              <a href="#demo-form">
                 <Button className="btn-primary">
-                  <span>Hesap Oluştur</span>
+                  <span>Demo Talep Et</span>
                   <ChevronRight size={16} />
                 </Button>
-              </Link>
+              </a>
             </div>
           </div>
         </div>
       </section>
-      
-      {/* CTA Section */}
-      <section className="py-16">
-  <div className="app-container">
-          <div className="glass p-8 md:p-12 max-w-4xl mx-auto">
-            <div className="flex flex-col md:flex-row items-center gap-8">
-              <div className="md:w-2/3">
-                <h2 className="text-2xl md:text-3xl font-bold mb-4">
-                  Sürdürülebilir Geleceğe Adım Atın
-                </h2>
-                <p className="text-white/70 mb-6">
-                  C-REP ile karbon emisyonlarınızı yönetin ve sürdürülebilir bir gelecek için sorumluluk alın.
-                </p>
-                <Link href="/signup">
-                  <Button size="lg" className="btn-primary">
-                    Hesap Oluşturun
-                  </Button>
-                </Link>
+
+      {/* Demo Request Form Section */}
+      <section id="demo-form" className="py-16">
+        <div className="app-container">
+          <div className="glass p-8 md:p-12 max-w-2xl mx-auto">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 mb-4">
+                <Sparkles size={28} className="text-leaf-400" />
               </div>
-              <div className="md:w-1/3 flex justify-center">
-                <div className="w-32 h-32 rounded-full bg-gradient-to-br from-leaf-500/20 to-ocean-500/20 backdrop-blur-md flex items-center justify-center">
-                  <Leaf size={48} className="text-leaf-400" />
-                </div>
-              </div>
+              <h2 className="text-2xl md:text-3xl font-bold mb-3">
+                Erken Erişim <span className="highlight-text">Talep Edin</span>
+              </h2>
+              <p className="text-white/70">
+                C-REP şu anda seçkin sanayi ortakları için kapalı beta aşamasındadır. Demo talep etmek için aşağıdaki formu doldurun.
+              </p>
             </div>
+
+            <LeadForm />
           </div>
         </div>
       </section>
-      
+
       {/* Footer */}
       <footer id="footer" className="py-12 border-t border-white/10">
-  <div className="app-container">
+        <div className="app-container">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 mb-12">
             {/* Company */}
             <div>
@@ -333,44 +345,35 @@ export default async function Page() {
                 Profesyonel karbon emisyonu yönetim platformu. Sürdürülebilir bir gelecek için veri odaklı çözümler.
               </p>
               <div className="flex items-center gap-4">
-                <a href="#" className="text-white/70 hover:text-white transition-colors">
-                  <Twitter size={18} />
-                </a>
-                <a href="#" className="text-white/70 hover:text-white transition-colors">
+                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="text-white/70 hover:text-white transition-colors">
                   <Linkedin size={18} />
                 </a>
-                <a href="#" className="text-white/70 hover:text-white transition-colors">
-                  <Facebook size={18} />
-                </a>
-                <a href="#" className="text-white/70 hover:text-white transition-colors">
+                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="text-white/70 hover:text-white transition-colors">
                   <Instagram size={18} />
                 </a>
               </div>
             </div>
-            
+
             {/* Links */}
             <div>
               <h3 className="text-lg font-medium mb-4">Hızlı Bağlantılar</h3>
               <ul className="space-y-2">
                 <li><a href="#features" className="footer-link">Özellikler</a></li>
-                <li><a href="#" className="footer-link">Fiyatlandırma</a></li>
                 <li><a href="#how-it-works" className="footer-link">Nasıl Çalışır</a></li>
-                <li><a href="#" className="footer-link">Blog</a></li>
+                <li><a href="#demo-form" className="footer-link">Demo Talep Et</a></li>
                 <li><a href="#footer" className="footer-link">İletişim</a></li>
               </ul>
             </div>
-            
+
             {/* Legal */}
             <div>
               <h3 className="text-lg font-medium mb-4">Yasal</h3>
               <ul className="space-y-2">
-                <li><a href="#" className="footer-link">Gizlilik Politikası</a></li>
-                <li><a href="#" className="footer-link">Kullanım Koşulları</a></li>
-                <li><a href="#" className="footer-link">KVKK</a></li>
-                <li><a href="#" className="footer-link">Çerez Politikası</a></li>
+                <li><span className="footer-link cursor-default">Gizlilik Politikası</span></li>
+                <li><span className="footer-link cursor-default">KVKK</span></li>
               </ul>
             </div>
-            
+
             {/* Contact */}
             <div>
               <h3 className="text-lg font-medium mb-4">İletişim</h3>
@@ -381,24 +384,24 @@ export default async function Page() {
                 </li>
                 <li className="flex items-center gap-3">
                   <Mail size={18} className="text-leaf-400 shrink-0" />
-                  <a href="mailto:info@c-rep.com" className="footer-link">info@c-rep.com</a>
+                  <a href="mailto:crep.iletisim@gmail.com" className="footer-link">crep.iletisim@gmail.com</a>
                 </li>
                 <li className="flex items-center gap-3">
                   <Phone size={18} className="text-leaf-400 shrink-0" />
-                  <a href="tel:+902121234567" className="footer-link">+90 212 123 45 67</a>
+                  <a href="tel:+905063633853" className="footer-link">+90 506 363 38 53</a>
                 </li>
               </ul>
             </div>
           </div>
-          
+
           <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-white/50 text-sm">
               &copy; {new Date().getFullYear()} C-REP. Tüm hakları saklıdır.
             </p>
             <div className="flex items-center gap-4 mt-4 md:mt-0">
-              <a href="#" className="text-white/50 hover:text-white/70 text-sm">Destek</a>
-              <a href="#" className="text-white/50 hover:text-white/70 text-sm">Yardım Merkezi</a>
-              <a href="#" className="text-white/50 hover:text-white/70 text-sm">SSS</a>
+              <a href="#features" className="text-white/50 hover:text-white/70 text-sm">Özellikler</a>
+              <a href="#demo-form" className="text-white/50 hover:text-white/70 text-sm">Demo Talep Et</a>
+              <a href="mailto:crep.iletisim@gmail.com" className="text-white/50 hover:text-white/70 text-sm">İletişim</a>
             </div>
           </div>
         </div>

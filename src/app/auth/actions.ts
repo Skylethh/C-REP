@@ -13,46 +13,10 @@ export async function login(formData: FormData) {
   redirect(('/dashboard') as Route);
 }
 
-export async function signup(formData: FormData) {
-  const email = String(formData.get('email') || '').trim();
-  const password = String(formData.get('password') || '');
-  const confirmPassword = String(formData.get('confirmPassword') || '');
-  
-  if (!email || !password || !confirmPassword) {
-    return { error: 'Lütfen tüm alanları doldurun.' };
-  }
-  
-  if (password !== confirmPassword) {
-    return { error: 'Şifreler eşleşmiyor. Lütfen tekrar kontrol edin.' };
-  }
-  
-  if (password.length < 8) {
-    return { error: 'Şifre en az 8 karakter olmalıdır.' };
-  }
-  
-  try {
-    const supabase = await createClient();
-    const { error, data } = await supabase.auth.signUp({ 
-      email, 
-      password,
-      options: {
-        emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`
-      }
-    });
-    
-    if (error) {
-      console.error('Signup API error:', error);
-      return { error: error.message };
-    }
-    
-    // Log success data for debugging
-    console.log('Signup success data:', data);
-    
-    return { success: 'Hesap oluşturuldu! Lütfen e-posta adresinize gönderilen doğrulama bağlantısına tıklayın.' };
-  } catch (error) {
-    console.error('Signup error:', error);
-    return { error: 'Bir hata oluştu. Lütfen daha sonra tekrar deneyin.' };
-  }
+export async function signup(_formData: FormData) {
+  // Registration is closed — C-REP is in private beta.
+  // New users are onboarded manually after a demo request.
+  return { error: 'Kayıt şu anda kapalıdır. Demo talep etmek için iletişim formumuzu kullanın.' };
 }
 
 export async function signOut() {
