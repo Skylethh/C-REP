@@ -69,4 +69,4 @@ supabase/volumes/
 # (do NOT ignore lock files: package-lock.json, yarn.lock, pnpm-lock.yaml, bun.lockb)
 
 # Misc caches
-.eslintcache
+.eslintcacheCarbonProject-main.code-workspace
