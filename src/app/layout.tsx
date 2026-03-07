@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import type { Viewport } from 'next';
+import type { Viewport, Metadata } from 'next';
 import { createClient } from '@/lib/server';
 import { Header } from '@/components/Header';
 import { SkipLink } from '@/components/SkipLink';
@@ -26,15 +26,15 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
         await supabase.rpc('create_organization', { p_name: 'Default Org', p_owner: user.id });
         revalidatePath('/dashboard');
       }
-    } catch {}
+    } catch { }
   }
 
   return (
     <html lang="tr">
       <body className="min-h-screen bg-emerald-950 text-green-100">
         <SkipLink />
-  <Header user={user ? { email: user.email } : null} />
-  <main id="main" className="app-container py-8 safe-px safe-pb">{children}</main>
+        <Header user={user ? { email: user.email } : null} />
+        <main id="main" className="app-container py-8 safe-px safe-pb">{children}</main>
         <ToastContainer />
       </body>
     </html>
@@ -45,6 +45,11 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover'
+};
+
+export const metadata: Metadata = {
+  title: 'C-REP | Profesyonel Karbon Yönetimi',
+  description: 'Kuruluşunuzun karbon ayak izini proje bazında takip etmenizi, hesaplamanızı ve raporlamanızı sağlayan profesyonel bir platformdur.'
 };
 
 
